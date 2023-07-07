@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+
+# data structures
+from typing import Set, Tuple, Dict
+
+import networkx as nx
+
+# ROS
+import rospy
+
+# UP
+from unified_planning.plans import ActionInstance
+from unified_planning.model.metrics import (
+    MinimizeMakespan,
+    MinimizeSequentialPlanLength,
+)
+from up_esb.plexmo import PlanDispatcher
+from up_esb.executor import Executor
+
+# April
+from april_krem.domain import Domain
+from april_krem.plan_visualization import PlanVisualization
+
+
+class AprilPlanDispatcher:
+    def __init__(self, domain: Domain = None, temporal_actions: bool = False):
+        if domain is None:
+            rospy.signal_shutdown(
+                "DispatcherROS: Planning domain not specified! Shutting down dispatcher!"
+            )
+        self._domain = domain
+        if temporal_actions:
+            self._dispatcher = Executor()
+            # self._dispatcher.set_dispatch_callback(self.parallel_dispatch_cb)
+        else:
+            self._dispatcher = PlanDispatcher()
+            self._dispatcher.set_dispatch_callback(self.dispatch_cb)
+        self._plan = None
+        self._node_id_to_action_map: Dict[int, ActionInstance] = {}
+        self._goals = []
+        self._executed_actions: Set[str] = set()
+        self._temporal_actions = temporal_actions
+
+        self._timeout = 60.0
+
+        self._plan_viz = None
+
+        # Parameter if preconditions and effects should be checked (enable monitor)
+        self._enable_monitor = rospy.get_param("~enable_monitor", default="True")
+
+    def plan(self, goal=None) -> nx.DiGraph:
+        self._domain.set_goal(goal)
+
+        if self._temporal_actions:
+            plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
+            print("DispatcherROS: Found Plan!\n")
+            for start, action, duration in plan.timed_actions:
+                print("%s: %s [%s]" % (float(start), action, float(duration)))
+            if self._plan_viz is None:
+                actions_viz = [a[1] for a in plan.timed_actions]
+                self._plan_viz = PlanVisualization()
+                self._plan_viz.set_actions(actions_viz)
+                # create map between executed graph nodes and plan action instances for visualization
+                id = 1
+                for action in actions_viz:
+                    self._node_id_to_action_map[id] = action
+                    id += 1
+        else:
+            plan = self._domain.solve(
+                planner_name="aries", metric=MinimizeSequentialPlanLength()
+            )
+            print(f"DispatcherROS: Found Plan!\n{plan}")
+            if self._plan_viz is None:
+                self._plan_viz = PlanVisualization()
+                self._plan_viz.set_actions(plan.actions)
+                # create map between executed graph nodes and plan action instances for visualization
+                id = 1
+                for action in plan.actions:
+                    self._node_id_to_action_map[id] = action
+                    id += 1
+
+        if plan is not None:
+            self._plan = self._domain.specific_domain.get_executable_graph(plan)
+            return self._plan
+        else:
+            rospy.logerr("Could not find plan!")
+            return None
+
+    def execute(self, plan_graph: nx.DiGraph) -> bool:
+        result = False
+        if self._temporal_actions:
+            result = self._dispatcher.execute(plan_graph)
+        else:
+            result = self._dispatcher.execute_plan(plan_graph)
+        return result
+
+    def dispatch_cb(self, action: Tuple[str, dict]) -> bool:
+        rospy.loginfo(
+            f"\033[92mDispatcherROS: Dispatching action {action[1]['action']}\033[0m"
+        )
+
+        parameters = action[1]["parameters"]
+        context = action[1]["context"]
+        executor = context[action[1]["action"]]
+
+        # Execute action
+        self._plan_viz.execute(self._node_id_to_action_map[action[0]])
+        result = executor(**parameters)
+        self._executed_actions.add(action[1]["action"])
+
+        if rospy.is_shutdown():
+            return False
+
+        if result is not None:
+            if result:
+                self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
+            else:
+                self._plan_viz.fail(self._node_id_to_action_map[action[0]])
+
+        return result is not None and result
+
+    async def parallel_dispatch_cb(self, action: Tuple[str, dict]) -> bool:
+        rospy.loginfo(
+            f"\033[92mDispatcherROS: Dispatching action {action[1]['action']}\033[0m"
+        )
+        parameters = action[1]["parameters"]
+        context = action[1]["context"]
+        executor = context[action[1]["action"]]
+
+        # Execute action
+        self._plan_viz.execute(self._node_id_to_action_map[action[0]])
+        result = executor(**parameters)
+        self._executed_actions.add(action[1]["action"])
+
+        if rospy.is_shutdown():
+            return False
+
+        if result is not None:
+            if result:
+                self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
+            else:
+                self._plan_viz.fail(self._node_id_to_action_map[action[0]])
+
+        return result is not None and result
+
+
+def main():
+    rospy.init_node("plan_executor")
+    rospy.loginfo("DispatcherROS: Plan Dispatcher started!")
+    simulation = rospy.get_param("~sim", default=False)
+    use_case = rospy.get_param("~use_case", default="uc6")
+    temporal_actions = rospy.get_param("~temporal_actions", default=False)
+
+    domain = Domain(use_case=use_case, sim=simulation, temporal=temporal_actions)
+
+    dispatcher = AprilPlanDispatcher(domain, temporal_actions)
+    plan = dispatcher.plan()
+
+    if plan is not None:
+        # Execute the plan
+        print("DispatcherROS: Started execution of plan!")
+        dispatcher_result = dispatcher.execute(plan)
+        print(
+            "DispatcherROS: Dispatcher finished with result " + str(dispatcher_result)
+        )
+    rospy.spin()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- asin / osai / incm / pemu / slvr_epic1 / slvr_epic2 / slvr_epic3 / slvr_epic4 / slvr_epic5 / ines -->
+    <arg name="use_case" default="uc6" />
+    <arg name="sim" default="true" />
+    <arg name="temporal_actions" default="false" doc="enables parallel action execution"/>
+
+    <!-- enable the monitor to check preconditions and effects of actions during execution -->
+    <arg name="enable_monitor" default="false"/>
+    <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
+
+    <!-- plan executor -->
+    <group if="$(arg sim)" >
+        <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
+            <param name="robot" value="$(arg robot_name)"/>
+            <param name="enable_monitor" value="$(arg enable_monitor)"/>
+            <param name="sim" value="$(arg sim)"/>
+            <param name="temporal_actions" value="$(arg temporal_actions)"/>
+            <param name="pose_selector_activate_srv_name" value="/pick_pose_selector_node/pose_selector_activate"/>
+            <param name="pose_selector_class_query_srv_name" value="/pick_pose_selector_node/pose_selector_class_query"/>
+            <param name="pose_selector_clear_srv_name" value="/pick_pose_selector_node/pose_selector_clear"/>
+            <param name="pick_object_server_name" value="/$(arg robot_name)/pick_object" />
+            <param name="place_object_server_name" value="/$(arg robot_name)/place_object" />
+            <param name="insert_object_server_name" value="/$(arg robot_name)/insert_object" />
+        </node>
+    </group>
+    <group unless="$(arg sim)" >
+        <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
+            <param name="robot" value="$(arg robot_name)"/>
+            <param name="enable_monitor" value="$(arg enable_monitor)"/>
+            <param name="sim" value="$(arg sim)"/>
+            <param name="temporal_actions" value="$(arg temporal_actions)"/>
+        </node>
+
+        <!-- Grasp Library -->
+        <include file="$(find grasp_library)/launch/uc6.launch"/>
+    </group>
+</launch>
