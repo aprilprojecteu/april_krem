@@ -8,7 +8,7 @@
     <arg name="enable_monitor" default="false"/>
     <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
 
-    <arg name="goal" default=""/>
+    <arg name="goal" default="" doc="possible goals: get_next_insole, preload_bag_bundle, load_bag, pick_insole, open_bag, release_bag, seal_set"/>
 
     <!-- plan executor -->
     <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
