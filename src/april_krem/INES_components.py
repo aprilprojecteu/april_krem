@@ -96,7 +96,7 @@ class Actions:
         self._hicem_run_action_client = actionlib.SimpleActionClient(
             "/hicem/run/symbolic_action", RunSymbolicActionAction
         )
-        # self._hicem_run_action_client.wait_for_server()
+        self._hicem_run_action_client.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
         self._gesture_backup_buttons = rospy.Subscriber(

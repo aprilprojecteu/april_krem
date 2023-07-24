@@ -74,7 +74,6 @@ class AprilPlanDispatcher:
             plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
             rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
             if self._plan_viz is None:
-                print(type(plan))
                 self._plan_viz = PlanVisualization()
                 self._plan_viz.set_actions(plan.actions)
                 # create map between executed graph nodes and plan action instances for visualization
