@@ -649,20 +649,20 @@ class INESDomain(Bridge):
             problem.set_initial_value(self.holding(self.nothing), True)
 
             subtask_get_insole = problem.task_network.add_subtask(
-                self.get_insole(self.conveyor_a, self.insole)
+                self.get_next_insole, self.conveyor_a, self.insole
             )
         elif goal == "preload_bag_bundle":
             problem.set_initial_value(self.holding(self.nothing), True)
 
             subtask_prepare_bag = problem.task_network.add_subtask(
-                self.prepare_bag(self.bag)
+                self.preload_bag_bundle
             )
         elif goal == "load_bag":
             problem.set_initial_value(self.holding(self.nothing), True)
             problem.set_initial_value(self.bag_dispenser_has_bags(), True)
 
             subtask_prepare_bag = problem.task_network.add_subtask(
-                self.prepare_bag(self.bag)
+                self.load_bag, self.bag
             )
         elif goal == "pick_insole":
             problem.set_initial_value(self.holding(self.nothing), True)
@@ -675,28 +675,28 @@ class INESDomain(Bridge):
             problem.set_initial_value(self.item_in_fov(), True)
 
             subtask_bag_insole = problem.task_network.add_subtask(
-                self.bag_insole(self.insole, self.bag)
+                self.pick_insole, self.insole
             )
         elif goal == "open_bag":
             problem.set_initial_value(self.holding(self.nothing), True)
             problem.set_initial_value(self.bag_is_probably_available(), True)
 
             subtask_prepare_bag = problem.task_network.add_subtask(
-                self.prepare_bag(self.bag)
+                self.open_bag, self.bag
             )
         elif goal == "release_bag":
             problem.set_initial_value(self.holding(self.bag), True)
             problem.set_initial_value(self.set_available(self.insole, self.bag), True)
 
             subtask_bag_insole = problem.task_network.add_subtask(
-                self.bag_insole(self.insole, self.bag)
+                self.release_bag, self.insole, self.bag
             )
         elif goal == "seal_set":
             problem.set_initial_value(self.holding(self.bag), True)
             problem.set_initial_value(self.bag_set_released(), True)
 
             subtask_bag_insole = problem.task_network.add_subtask(
-                self.bag_insole(self.insole, self.bag)
+                self.seal_set, self.bag
             )
         else:
             logerr(
