@@ -53,9 +53,9 @@ class AprilPlanDispatcher:
 
         if self._temporal_actions:
             plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
-            print("DispatcherROS: Found Plan!\n")
+            rospy.loginfo("DispatcherROS: Found Plan!\n")
             for start, action, duration in plan.timed_actions:
-                print("%s: %s [%s]" % (float(start), action, float(duration)))
+                rospy.loginfo("%s: %s [%s]" % (float(start), action, float(duration)))
             if self._plan_viz is None:
                 actions_viz = [a[1] for a in plan.timed_actions]
                 self._plan_viz = PlanVisualization()
@@ -69,7 +69,7 @@ class AprilPlanDispatcher:
             plan = self._domain.solve(
                 planner_name="aries", metric=MinimizeSequentialPlanLength()
             )
-            print(f"DispatcherROS: Found Plan!\n{plan}")
+            rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
             if self._plan_viz is None:
                 self._plan_viz = PlanVisualization()
                 self._plan_viz.set_actions(plan.actions)
@@ -161,9 +161,9 @@ def main():
 
     if plan is not None:
         # Execute the plan
-        print("DispatcherROS: Started execution of plan!")
+        rospy.loginfo("DispatcherROS: Started execution of plan!")
         dispatcher_result = dispatcher.execute(plan)
-        print(
+        rospy.loginfo(
             "DispatcherROS: Dispatcher finished with result " + str(dispatcher_result)
         )
 
