@@ -1,3 +1,4 @@
+from rospy import logerr
 from unified_planning.model.htn import Task, Method
 from unified_planning.shortcuts import Or, StartTiming, EndTiming
 from april_krem.INES_components import (
@@ -698,7 +699,7 @@ class INESDomain(Bridge):
                 self.bag_insole(self.insole, self.bag)
             )
         else:
-            print(
+            logerr(
                 (
                     f"Task ({goal}) is unknown! Please use a task from this list: "
                     "get_next_insole, preload_bag_bundle, load_bag, pick_insole, "

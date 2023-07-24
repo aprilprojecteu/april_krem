@@ -86,15 +86,17 @@ class Actions:
     def __init__(self, env: Environment):
         self._env = env
         # Grasp Library
+        rospy.loginfo("Waiting for Grasp Library Service...")
         rospy.wait_for_service("/krem/grasp_library")
         self._grasp_library_srv = rospy.ServiceProxy(
             "/krem/grasp_library", GetGraspStrategy
         )
-
+        rospy.loginfo("Grasp Library Service found!")
+        rospy.loginfo("Waiting for HICEM Run Symbolic Action Server...")
         self._hicem_run_action_client = actionlib.SimpleActionClient(
             "/hicem/run/symbolic_action", RunSymbolicActionAction
         )
-        self._hicem_run_action_client.wait_for_server()
+        # self._hicem_run_action_client.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
         self._gesture_backup_buttons = rospy.Subscriber(
