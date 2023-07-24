@@ -13,11 +13,8 @@ from unified_planning.shortcuts import OneshotPlanner
 
 
 class Domain:
-    def __init__(
-        self, use_case: str = "uc6", sim: bool = False, temporal: bool = False
-    ):
+    def __init__(self, use_case: str = "uc6", temporal: bool = False):
         self._use_case = use_case
-        self._sim = sim
 
         if use_case == "uc1":
             pass
@@ -32,7 +29,7 @@ class Domain:
         elif use_case == "uc6":
             from april_krem.INES_domain import INESDomain
 
-            self.specific_domain = INESDomain(sim, temporal)
+            self.specific_domain = INESDomain(temporal)
 
         self.problem = self.define_problem()
 

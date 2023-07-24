@@ -4,23 +4,16 @@ from april_krem.INES_components import (
     Item,
     Location,
     Actions,
-    SimulatedActions,
     Environment,
-    SimulationEnvironment,
 )
 from up_esb.bridge import Bridge
 
 
 class INESDomain(Bridge):
-    def __init__(self, simulation: bool = False, temporal: bool = False) -> None:
+    def __init__(self, temporal: bool = False) -> None:
         Bridge.__init__(self)
 
-        self._sim = simulation
-
-        if self._sim:
-            env = SimulationEnvironment()
-        else:
-            env = Environment()
+        env = Environment()
 
         # Create types for planning based on class types
         self.create_types([Item, Location])
@@ -28,38 +21,18 @@ class INESDomain(Bridge):
         type_location = self.get_type(Location)
 
         # Create fluents for planning
-        if self._sim:
-            self.holding = self.create_fluent_from_function(env.holding)
-            self.item_pose_is_known = self.create_fluent_from_function(
-                env.item_pose_is_known
-            )
-            self.item_in_fov = self.create_fluent_from_function(env.item_in_fov)
-            self.bag_set_released = self.create_fluent_from_function(
-                env.bag_set_released
-            )
-            self.set_available = self.create_fluent_from_function(env.set_available)
-            self.bag_is_available = self.create_fluent_from_function(
-                env.bag_is_available
-            )
-            self.bag_dispenser_has_bags = self.create_fluent("bag_dispenser_has_bags")
-            self.sealing_machine_ready = self.create_fluent("sealing_machine_ready")
-        else:
-            self.holding = self.create_fluent("holding", item=Item)
-            self.item_pose_is_known = self.create_fluent(
-                "item_pose_is_known", item=Item
-            )
-            self.item_in_fov = self.create_fluent("item_in_fov")
-            self.bag_set_released = self.create_fluent("bag_set_released")
-            self.set_available = self.create_fluent(
-                "set_available", insole=Item, bag=Item
-            )
-            self.bag_is_available = self.create_fluent("bag_is_available", bag=Item)
-            self.bag_dispenser_has_bags = self.create_fluent_from_function(
-                env.bag_dispenser_has_bags
-            )
-            self.sealing_machine_ready = self.create_fluent_from_function(
-                env.sealing_machine_ready
-            )
+        self.holding = self.create_fluent("holding", item=Item)
+        self.item_pose_is_known = self.create_fluent("item_pose_is_known", item=Item)
+        self.item_in_fov = self.create_fluent("item_in_fov")
+        self.bag_set_released = self.create_fluent("bag_set_released")
+        self.set_available = self.create_fluent("set_available", insole=Item, bag=Item)
+        self.bag_is_available = self.create_fluent("bag_is_available", bag=Item)
+        self.bag_dispenser_has_bags = self.create_fluent_from_function(
+            env.bag_dispenser_has_bags
+        )
+        self.sealing_machine_ready = self.create_fluent_from_function(
+            env.sealing_machine_ready
+        )
 
         self.human_available = self.create_fluent("human_available")
         self.item_type_is_known = self.create_fluent("item_type_is_known", item=Item)
@@ -88,29 +61,12 @@ class INESDomain(Bridge):
         # Create actions for planning
         self._create_domain_actions(env, temporal)
 
-        self._monitored_fluents = []
-        if self._sim:
-            self._monitored_fluents.extend(
-                [
-                    self.moving,
-                    self.stationary,
-                    self.holding,
-                    self.item_pose_is_known,
-                    self.item_in_fov,
-                    self.bag_set_released,
-                    self.set_available,
-                    self.bag_is_available,
-                ]
-            )
-        else:
-            self._monitored_fluents.extend(
-                [
-                    self.moving,
-                    self.stationary,
-                    self.bag_dispenser_has_bags,
-                    self.sealing_machine_ready,
-                ]
-            )
+        self._monitored_fluents = [
+            self.moving,
+            self.stationary,
+            self.bag_dispenser_has_bags,
+            self.sealing_machine_ready,
+        ]
 
         # Tasks
         self.get_insole = Task("get_insole", conveyor=type_location, insole=type_item)
@@ -368,10 +324,7 @@ class INESDomain(Bridge):
         )
         st3 = self.finish_set_full.add_subtask(self.seal_set, self.finish_set_full.bag)
 
-        if self._sim:
-            self.finish_set_full.set_ordered(st2, st1, st3)
-        else:
-            self.finish_set_full.set_ordered(st1, st2, st3)
+        self.finish_set_full.set_ordered(st1, st2, st3)
 
         # bag_insole
         # insole already in bag
@@ -428,10 +381,7 @@ class INESDomain(Bridge):
         )
 
     def _create_domain_actions(self, env, temporal: bool = False) -> None:
-        if self._sim:
-            actions = SimulatedActions(env)
-        else:
-            actions = Actions(env)
+        actions = Actions(env)
 
         if temporal:
             self.reject_insole, [x] = self.create_action(
@@ -499,8 +449,6 @@ class INESDomain(Bridge):
             self.pick_set.add_condition(StartTiming(), self.holding(self.nothing))
             self.pick_set.add_effect(EndTiming(), self.holding(self.nothing), False)
             self.pick_set.add_effect(EndTiming(), self.holding(y), True)
-            if self._sim:
-                self.pick_set.add_effect(EndTiming(), self.set_available(x, y), False)
 
             self.insert, [x, y] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert, duration=30
@@ -562,10 +510,7 @@ class INESDomain(Bridge):
                 duration=10,
             )
             self.release_bag.add_condition(StartTiming(), self.set_available(x, y))
-            if not self._sim:
-                self.release_bag.add_effect(
-                    EndTiming(), self.set_available(x, y), False
-                )
+            self.release_bag.add_effect(EndTiming(), self.set_available(x, y), False)
             self.release_bag.add_effect(EndTiming(), self.bag_set_released(), True)
 
             self.seal_set, [x] = self.create_action(
@@ -628,8 +573,6 @@ class INESDomain(Bridge):
             self.pick_set.add_precondition(self.holding(self.nothing))
             self.pick_set.add_effect(self.holding(self.nothing), False)
             self.pick_set.add_effect(self.holding(y), True)
-            if self._sim:
-                self.pick_set.add_effect(self.set_available(x, y), False)
 
             self.insert, [x, y] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert
@@ -670,8 +613,7 @@ class INESDomain(Bridge):
                 "release_bag", insole=Item, bag=Item, _callable=actions.release_bag
             )
             self.release_bag.add_precondition(self.set_available(x, y))
-            if not self._sim:
-                self.release_bag.add_effect(self.set_available(x, y), False)
+            self.release_bag.add_effect(self.set_available(x, y), False)
             self.release_bag.add_effect(self.bag_set_released(), True)
 
             self.seal_set, [x] = self.create_action(
@@ -685,13 +627,10 @@ class INESDomain(Bridge):
             self.seal_set.add_effect(self.holding(self.nothing), True)
 
     def set_state_and_goal(self, problem, goal=None) -> None:
-        if self._sim:
-            problem.set_initial_value(self.sealing_machine_ready(), True)
         problem.set_initial_value(self.human_available(), True)
 
         if goal is None:
-            if not self._sim:
-                problem.set_initial_value(self.holding(self.nothing), True)
+            problem.set_initial_value(self.holding(self.nothing), True)
 
             subtask_get_insole = problem.task_network.add_subtask(
                 self.get_insole(self.conveyor_a, self.insole)
@@ -757,4 +696,12 @@ class INESDomain(Bridge):
 
             subtask_bag_insole = problem.task_network.add_subtask(
                 self.bag_insole(self.insole, self.bag)
+            )
+        else:
+            print(
+                (
+                    f"Task ({goal}) is unknown! Please use a task from this list: "
+                    "get_next_insole, preload_bag_bundle, load_bag, pick_insole, "
+                    "open_bag, release_bag, seal_set"
+                )
             )

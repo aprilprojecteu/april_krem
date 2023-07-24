@@ -147,14 +147,17 @@ class AprilPlanDispatcher:
 def main():
     rospy.init_node("plan_executor")
     rospy.loginfo("DispatcherROS: Plan Dispatcher started!")
-    simulation = rospy.get_param("~sim", default=False)
     use_case = rospy.get_param("~use_case", default="uc6")
     temporal_actions = rospy.get_param("~temporal_actions", default=False)
+    goal = rospy.get_param("~goal", default="")
 
-    domain = Domain(use_case=use_case, sim=simulation, temporal=temporal_actions)
+    if not goal:
+        goal = None
+
+    domain = Domain(use_case=use_case, temporal=temporal_actions)
 
     dispatcher = AprilPlanDispatcher(domain, temporal_actions)
-    plan = dispatcher.plan()
+    plan = dispatcher.plan(goal=goal)
 
     if plan is not None:
         # Execute the plan
@@ -163,7 +166,6 @@ def main():
         print(
             "DispatcherROS: Dispatcher finished with result " + str(dispatcher_result)
         )
-    rospy.spin()
 
 
 if __name__ == "__main__":
