@@ -96,7 +96,7 @@ class Actions:
         self._hicem_run_action_client = actionlib.SimpleActionClient(
             "/hicem/run/symbolic_action", RunSymbolicActionAction
         )
-        self._hicem_run_action_client.wait_for_server()
+        #self._hicem_run_action_client.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
         self._gesture_backup_buttons = rospy.Subscriber(
@@ -205,7 +205,7 @@ class Actions:
         return result
 
     def get_next_insole(self, conveyor: Location, insole: Item):
-        result = self.run_symbolic_action("get_next_insole", timeout=10.0)
+        result = self.run_symbolic_action("get_next_insole", timeout=60.0)
         return result
 
     def preload_bag_bundle(self):

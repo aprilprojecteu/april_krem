@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 
 # data structures
 from typing import Set, Tuple, Dict
@@ -119,6 +120,7 @@ class AprilPlanDispatcher:
                 self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
             else:
                 self._plan_viz.fail(self._node_id_to_action_map[action[0]])
+                sys.exit()
 
         return result is not None and result
 
