@@ -55,33 +55,35 @@ class AprilPlanDispatcher:
 
         if self._temporal_actions:
             plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
-            rospy.loginfo("DispatcherROS: Found Plan!\n")
-            for start, action, duration in plan.timed_actions:
-                rospy.loginfo("%s: %s [%s]" % (float(start), action, float(duration)))
-            if self._plan_viz is None:
-                actions_viz = [a[1] for a in plan.timed_actions]
-                self._plan_viz = PlanVisualization()
-                self._plan_viz.set_actions(actions_viz)
-                # create map between executed graph nodes and plan action instances for visualization
-                id = 1
-                for action in actions_viz:
-                    self._node_id_to_action_map[id] = action
-                    id += 1
+            if plan is not None:
+                rospy.loginfo("DispatcherROS: Found Plan!\n")
+                for start, action, duration in plan.timed_actions:
+                    rospy.loginfo("%s: %s [%s]" % (float(start), action, float(duration)))
+                if self._plan_viz is None:
+                    actions_viz = [a[1] for a in plan.timed_actions]
+                    self._plan_viz = PlanVisualization()
+                    self._plan_viz.set_actions(actions_viz)
+                    # create map between executed graph nodes and plan action instances for visualization
+                    id = 1
+                    for action in actions_viz:
+                        self._node_id_to_action_map[id] = action
+                        id += 1
         else:
             plan = self._domain.solve(
                 planner_name="aries", metric=MinimizeSequentialPlanLength()
             )
-            # Convert to sequential plan for visualization and execution
-            plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
-            rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
-            if self._plan_viz is None:
-                self._plan_viz = PlanVisualization()
-                self._plan_viz.set_actions(plan.actions)
-                # create map between executed graph nodes and plan action instances for visualization
-                id = 1
-                for action in plan.actions:
-                    self._node_id_to_action_map[id] = action
-                    id += 1
+            if plan is not None:
+                # Convert to sequential plan for visualization and execution
+                plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
+                rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
+                if self._plan_viz is None:
+                    self._plan_viz = PlanVisualization()
+                    self._plan_viz.set_actions(plan.actions)
+                    # create map between executed graph nodes and plan action instances for visualization
+                    id = 1
+                    for action in plan.actions:
+                        self._node_id_to_action_map[id] = action
+                        id += 1
 
         if plan is not None:
             self._plan = self._domain.specific_domain.get_executable_graph(plan)
