@@ -24,7 +24,15 @@ class Domain:
             pass
         elif use_case == "uc4":
             pass
-        elif use_case == "uc5":
+        elif use_case == "uc5_1":
+            pass
+        elif use_case == "uc5_2":
+            pass
+        elif use_case == "uc5_3":
+            pass
+        elif use_case == "uc5_4":
+            pass
+        elif use_case == "uc5_5":
             pass
         elif use_case == "uc6":
             from april_krem.INES_domain import INESDomain

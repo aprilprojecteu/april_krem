@@ -108,31 +108,39 @@ class Actions:
         self._current_action_status = "LOST"
 
     def run_symbolic_action(
-        self, action_name: str, target_id: str = "", grasp_facts=[], timeout=60.0
+        self, action_name: str, action_arguments = [], grasp_facts=[], timeout=0.0
     ) -> bool:
-        if target_id is None:
-            target_id = ""
         run_symbolic_action_goal_msg = RunSymbolicActionGoal(
-            action_type=action_name, target_id=target_id, grasp_facts=grasp_facts
+            action_type=action_name, action_arguments=action_arguments, grasp_facts=grasp_facts
         )
 
         self._hicem_run_action_client.send_goal(
             run_symbolic_action_goal_msg, done_cb=self._symbolic_action_done_cb
         )
         self._current_action_status = "ACTIVE"
+        start_time = rospy.get_rostime().to_sec()
 
         rate = rospy.Rate(10)
 
         while self._current_action_status == "ACTIVE" and not rospy.is_shutdown():
+            if timeout > 0.0 and rospy.get_rostime().to_sec() - start_time > timeout:
+                self._current_action_status = "TIMEOUT"
             rate.sleep()
 
         if self._current_action_status == "SUCCEEDED":
             return True
         elif self._current_action_status == "PREEMPTED":
+            self._hicem_run_action_client.cancel_all_goals()
             return False
         elif self._current_action_status == "ERROR":
+            self._hicem_run_action_client.cancel_all_goals()
             return False
         elif self._current_action_status == "LOST":
+            self._hicem_run_action_client.cancel_all_goals()
+            return False
+        elif self._current_action_status == "TIMEOUT":
+            rospy.logerr(f"{action_name} timed out after {timeout} seconds!")
+            self._hicem_run_action_client.cancel_all_goals()
             return False
 
         return False
@@ -187,35 +195,42 @@ class Actions:
             self._hicem_run_action_client.cancel_all_goals()
             self._current_action_status = "PREEMPTED"
 
+    def wait_for_human_intervention(self):
+        result = self.run_symbolic_action("wait_for_human_intervention")
+        return result
+
     def reject_insole(self, conveyor: Location):
-        result = self.run_symbolic_action("reject_insole", timeout=20.0)
+        # arguments: [ID of insole]
+        result = self.run_symbolic_action("reject_insole", action_arguments=["1"], timeout=60.0)
         return result
 
     def get_next_insole(self, conveyor: Location, insole: Item):
-        result = self.run_symbolic_action("get_next_insole", timeout=20.0)
+        result = self.run_symbolic_action("get_next_insole", timeout=10.0)
         return result
 
     def preload_bag_bundle(self):
-        result = self.run_symbolic_action("preload_bag_bundle", timeout=20.0)
+        result = self.run_symbolic_action("preload_bag_bundle")
         return result
 
     def load_bag(self, bag: Item):
-        result = self.run_symbolic_action("load_bag", timeout=20.0)
+        result = self.run_symbolic_action("load_bag", timeout=60.0)
         return result
 
     def open_bag(self, bag: Item):
-        result = self.run_symbolic_action("open_bag", timeout=20.0)
+        result = self.run_symbolic_action("open_bag", timeout=60.0)
         return result
 
     def match_insole_bag(self, insole: Item, bag: Item):
-        result = self.run_symbolic_action("match_insole_bag", timeout=20.0)
+        # arguments: [ID of insole, ID of bag]
+        result = self.run_symbolic_action("match_insole_bag", action_arguments=["1", "1"], timeout=60.0)
         return result
 
     def pick_insole(self, insole: Item):
         grasp_facts = self._grasp_library_srv("mia", "insole_model_1", "bagging", False)
         # TODO Object ID
+        # arguments: [ID of insole]
         result = self.run_symbolic_action(
-            "pick_insole", "1", grasp_facts.grasp_strategies, 120.0
+            "pick_insole", ["1"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
             self._env.item_in_hand = insole
@@ -224,8 +239,9 @@ class Actions:
     def pick_set(self, insole: Item, bag: Item):
         grasp_facts = self._grasp_library_srv("mia", "set_1", "sealing", False)
         # TODO Object ID
+        # arguments: [ID of set]
         result = self.run_symbolic_action(
-            "pick_set", "1", grasp_facts.grasp_strategies, 120.0
+            "pick_set", ["1"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
             self._env.item_in_hand = bag
@@ -233,34 +249,33 @@ class Actions:
 
     def insert(self, insole: Item, bag: Item):
         # TODO Object ID
-        result = self.run_symbolic_action("insert", "1", timeout=120.0)
+        # arguments: [ID of bag (workaround: ID of set)​]
+        result = self.run_symbolic_action("insert", ["1"], timeout=180.0)
         if result:
             self._env.item_in_hand = Item.nothing
             self._env.item_in_bag = insole
         return result
 
     def perceive_insole(self, insole: Item):
-        # TODO Object ID
-        result = self.run_symbolic_action("perceive_insole", "1", timeout=20.0)
+        result = self.run_symbolic_action("perceive_insole", timeout=60.0)
         return result
 
     def perceive_bag(self, bag: Item):
-        # TODO Object ID
-        result = self.run_symbolic_action("perceive_bag", "1", timeout=20.0)
+        result = self.run_symbolic_action("perceive_bag", timeout=60.0)
         return result
 
     def perceive_set(self, insole: Item, bag: Item):
-        # TODO Object ID
-        result = self.run_symbolic_action("perceive_set", "1", timeout=20.0)
+        result = self.run_symbolic_action("perceive_set", timeout=60.0)
         return result
 
     def release_bag(self, insole: Item, bag: Item):
-        result = self.run_symbolic_action("release_bag", timeout=20.0)
+        result = self.run_symbolic_action("release_bag", timeout=60.0)
         return result
 
     def seal_set(self, bag: Item):
         # TODO Object ID
-        result = self.run_symbolic_action("seal_set", "1", timeout=120.0)
+        # arguments: [ID of set​]
+        result = self.run_symbolic_action("seal_set", ["1"], timeout=180.0)
         if result:
             self._env.item_in_hand = Item.nothing
             self._env.item_in_bag = Item.nothing
