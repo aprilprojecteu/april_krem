@@ -99,11 +99,11 @@ class Actions:
         self._hicem_run_action_client.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
-        self._gesture_backup_buttons = rospy.Subscriber(
-            "/isim/hmi/gesture_backup_buttons",
-            GestureBackupButtonStates,
-            self._gesture_backup_button_cb,
-        )
+        # self._gesture_backup_buttons = rospy.Subscriber(
+        #     "/isim/hmi/gesture_backup_buttons",
+        #     GestureBackupButtonStates,
+        #     self._gesture_backup_button_cb,
+        # )
         # PENDING, ACTIVE, RECALLED, REJECTED, PREEMPTED, ABORTED, SUCCEEDED, LOST.
         self._current_action_status = "LOST"
 
