@@ -22,28 +22,25 @@ class INESDomain(Bridge):
         type_location = self.get_type(Location)
 
         # Create fluents for planning
-        self.holding = self.create_fluent("holding", item=Item)
-        self.item_pose_is_known = self.create_fluent("item_pose_is_known", item=Item)
-        self.item_in_fov = self.create_fluent("item_in_fov")
-        self.bag_set_released = self.create_fluent("bag_set_released")
-        self.set_available = self.create_fluent("set_available", insole=Item, bag=Item)
-        self.bag_is_available = self.create_fluent("bag_is_available", bag=Item)
+        self.holding = self.create_fluent_from_function(env.holding)
+        self.item_pose_is_known = self.create_fluent_from_function(env.item_pose_is_known)
+        self.item_in_fov = self.create_fluent_from_function(env.item_in_fov)
+        self.bag_set_released = self.create_fluent_from_function(env.bag_set_released)
         self.bag_dispenser_has_bags = self.create_fluent_from_function(
             env.bag_dispenser_has_bags
         )
         self.sealing_machine_ready = self.create_fluent_from_function(
             env.sealing_machine_ready
         )
-
-        self.human_available = self.create_fluent("human_available")
-        self.item_type_is_known = self.create_fluent("item_type_is_known", item=Item)
-        self.item_types_match = self.create_fluent("item_types_match", insole=Item, bag=Item)
-        self.insole_inside_bag = self.create_fluent(
-            "insole_inside_bag", insole=Item, bag=Item
+        self.human_available = self.create_fluent_from_function(env.human_available)
+        self.item_type_is_known = self.create_fluent_from_function(env.item_type_is_known)
+        self.item_types_match = self.create_fluent_from_function(env.item_types_match)
+        self.insole_inside_bag = self.create_fluent_from_function(
+            env.insole_inside_bag
         )
-        self.bag_is_probably_available = self.create_fluent("bag_is_probably_available")
-        self.bag_is_probably_open = self.create_fluent("bag_is_probably_open")
-        self.bag_is_open = self.create_fluent("bag_is_open", bag=Item)
+        self.bag_is_probably_available = self.create_fluent_from_function(env.bag_is_probably_available)
+        self.bag_is_probably_open = self.create_fluent_from_function(env.bag_is_probably_open)
+        self.bag_is_open = self.create_fluent_from_function(env.bag_is_open)
 
         self.moving = self.create_fluent_from_function(env.moving)
         self.stationary = self.create_fluent_from_function(env.stationary)
@@ -53,29 +50,25 @@ class INESDomain(Bridge):
         self.nothing = self.objects[Item.nothing.name]
         self.insole = self.objects[Item.insole.name]
         self.bag = self.objects[Item.bag.name]
+        self.set = self.objects[Item.set.name]
 
         self.locations = self.create_enum_objects(Location)
         self.conveyor_a = self.objects[Location.conveyor_a.name]
         self.conveyor_b = self.objects[Location.conveyor_b.name]
+        self.dispenser = self.objects[Location.dispenser.name]
         self.in_hand = self.objects[Location.in_hand.name]
         self.in_bag = self.objects[Location.in_bag.name]
+        self.unknown = self.objects[Location.unknown.name]
 
         # Create actions for planning
         self._create_domain_actions(env, temporal)
-
-        self._monitored_fluents = [
-            self.moving,
-            self.stationary,
-            self.bag_dispenser_has_bags,
-            self.sealing_machine_ready,
-        ]
 
         # Tasks
         self.get_insole = Task("get_insole", conveyor=type_location, insole=type_item)
         self.prepare_bag = Task("prepare_bag", bag=type_item)
         self.insert_insole = Task("insert_insole", insole=type_item, bag=type_item)
-        self.finish_set = Task("finish_set", insole=type_item, bag=type_item)
-        self.bag_insole = Task("bag_insole", insole=type_item, bag=type_item)
+        self.finish_set = Task("finish_set", set=type_item)
+        self.bag_insole = Task("bag_insole", insole=type_item, bag=type_item, set=type_item)
         self.tasks = (
             self.get_insole,
             self.prepare_bag,
@@ -133,8 +126,7 @@ class INESDomain(Bridge):
         )
         st1 = self.get_insole_full.add_subtask(
             self.get_next_insole,
-            self.get_insole_full.conveyor,
-            self.get_insole_full.insole,
+            self.get_insole_full.conveyor
         )
         st2 = self.get_insole_full.add_subtask(
             self.perceive_insole, self.get_insole_full.insole
@@ -146,7 +138,7 @@ class INESDomain(Bridge):
         self.prepare_bag_noop = Method("prepare_bag_noop", bag=type_item)
         self.prepare_bag_noop.set_task(self.prepare_bag, self.prepare_bag_noop.bag)
         self.prepare_bag_noop.add_precondition(
-            self.bag_is_available(self.prepare_bag_noop.bag)
+            self.item_pose_is_known(self.prepare_bag_noop.bag)
         )
 
         # bag dispenser has bags, bag already there, bag opened, not perceived yet
@@ -165,7 +157,7 @@ class INESDomain(Bridge):
         self.prepare_bag_open.set_task(self.prepare_bag, self.prepare_bag_open.bag)
         self.prepare_bag_open.add_precondition(self.bag_is_probably_available())
         st1 = self.prepare_bag_open.add_subtask(
-            self.open_bag, self.prepare_bag_open.bag
+            self.open_bag
         )
         st2 = self.prepare_bag_open.add_subtask(
             self.perceive_bag, self.prepare_bag_open.bag
@@ -177,10 +169,10 @@ class INESDomain(Bridge):
         self.prepare_bag_full.set_task(self.prepare_bag, self.prepare_bag_full.bag)
         self.prepare_bag_full.add_precondition(self.bag_dispenser_has_bags())
         st1 = self.prepare_bag_full.add_subtask(
-            self.load_bag, self.prepare_bag_full.bag
+            self.load_bag
         )
         st2 = self.prepare_bag_full.add_subtask(
-            self.open_bag, self.prepare_bag_full.bag
+            self.open_bag
         )
         st3 = self.prepare_bag_full.add_subtask(
             self.perceive_bag, self.prepare_bag_full.bag
@@ -193,10 +185,10 @@ class INESDomain(Bridge):
         self.prepare_bag_refill.add_precondition(self.human_available())
         st1 = self.prepare_bag_refill.add_subtask(self.preload_bag_bundle)
         st2 = self.prepare_bag_refill.add_subtask(
-            self.load_bag, self.prepare_bag_refill.bag
+            self.load_bag
         )
         st3 = self.prepare_bag_refill.add_subtask(
-            self.open_bag, self.prepare_bag_refill.bag
+            self.open_bag
         )
         st4 = self.prepare_bag_refill.add_subtask(
             self.perceive_bag, self.prepare_bag_refill.bag
@@ -206,7 +198,7 @@ class INESDomain(Bridge):
         # insert_insole
         # already inserted insole
         self.insert_insole_noop = Method(
-            "insert_insole_noop", insole=type_item, bag=type_item
+            "insert_insole_noop", insole=type_item, bag=type_item, set=type_item
         )
         self.insert_insole_noop.set_task(
             self.insert_insole,
@@ -223,11 +215,12 @@ class INESDomain(Bridge):
             self.perceive_set,
             self.insert_insole_noop.insole,
             self.insert_insole_noop.bag,
+            self.insert_insole_noop.set
         )
 
         # already holding insole
         self.insert_insole_insert = Method(
-            "insert_insole_insert", insole=type_item, bag=type_item
+            "insert_insole_insert", insole=type_item, bag=type_item, set=type_item
         )
         self.insert_insole_insert.set_task(
             self.insert_insole,
@@ -244,12 +237,13 @@ class INESDomain(Bridge):
             self.perceive_set,
             self.insert_insole_insert.insole,
             self.insert_insole_insert.bag,
+            self.insert_insole_insert.set
         )
         self.insert_insole_insert.set_ordered(st1, st2)
 
         # bag and insole are matching, pick and insert
         self.insert_insole_match = Method(
-            "insert_insole_match", insole=type_item, bag=type_item
+            "insert_insole_match", insole=type_item, bag=type_item, set=type_item
         )
         self.insert_insole_match.set_task(
             self.insert_insole,
@@ -257,10 +251,10 @@ class INESDomain(Bridge):
             self.insert_insole_match.bag,
         )
         self.insert_insole_match.add_precondition(
-            self.item_types_match(self.insert_insole_match.insole, self.insert_insole_match.bag)
+            self.item_types_match()
         )
         st1 = self.insert_insole_match.add_subtask(
-            self.pick_insole, self.insert_insole_match.insole, self.insert_insole_match.bag
+            self.pick_insole, self.insert_insole_match.insole
         )
         st2 = self.insert_insole_match.add_subtask(
             self.insert, self.insert_insole_match.insole, self.insert_insole_match.bag
@@ -269,12 +263,13 @@ class INESDomain(Bridge):
             self.perceive_set,
             self.insert_insole_match.insole,
             self.insert_insole_match.bag,
+            self.insert_insole_match.set
         )
         self.insert_insole_match.set_ordered(st1, st2, st3)
 
         # check if bag and insole are matching, pick and insert
         self.insert_insole_full = Method(
-            "insert_insole_full", insole=type_item, bag=type_item
+            "insert_insole_full", insole=type_item, bag=type_item, set=type_item
         )
         self.insert_insole_full.set_task(
             self.insert_insole,
@@ -291,7 +286,7 @@ class INESDomain(Bridge):
             self.match_insole_bag, self.insert_insole_full.insole, self.insert_insole_full.bag
         )
         st2 = self.insert_insole_full.add_subtask(
-            self.pick_insole, self.insert_insole_full.insole, self.insert_insole_full.bag
+            self.pick_insole, self.insert_insole_full.insole
         )
         st3 = self.insert_insole_full.add_subtask(
             self.insert, self.insert_insole_full.insole, self.insert_insole_full.bag
@@ -300,94 +295,94 @@ class INESDomain(Bridge):
             self.perceive_set,
             self.insert_insole_full.insole,
             self.insert_insole_full.bag,
+            self.insert_insole_full.set
         )
         self.insert_insole_full.set_ordered(st1, st2, st3, st4)
 
         # finish_set
         # already released, seal set
         self.finish_set_seal = Method(
-            "finish_set_seal", insole=type_item, bag=type_item
+            "finish_set_seal", set=type_item
         )
         self.finish_set_seal.set_task(
-            self.finish_set, self.finish_set_seal.insole, self.finish_set_seal.bag
+            self.finish_set, self.finish_set_seal.set
         )
         self.finish_set_seal.add_precondition(self.bag_set_released())
-        self.finish_set_seal.add_precondition(self.holding(self.finish_set_seal.bag))
-        self.finish_set_seal.add_subtask(self.seal_set, self.finish_set_seal.bag)
+        self.finish_set_seal.add_precondition(self.holding(self.finish_set_seal.set))
+        self.finish_set_seal.add_subtask(self.seal_set, self.finish_set_seal.set)
 
         # set already in hand, release set and seal set
         self.finish_set_release = Method(
-            "finish_set_release", insole=type_item, bag=type_item
+            "finish_set_release", set=type_item
         )
         self.finish_set_release.set_task(
-            self.finish_set, self.finish_set_release.insole, self.finish_set_release.bag
+            self.finish_set, self.finish_set_release.set
         )
         self.finish_set_release.add_precondition(
-            self.holding(self.finish_set_release.bag)
+            self.holding(self.finish_set_release.set)
         )
         st1 = self.finish_set_release.add_subtask(
             self.release_set,
-            self.finish_set_release.insole,
-            self.finish_set_release.bag,
+            self.finish_set_release.set
         )
         st2 = self.finish_set_release.add_subtask(
-            self.seal_set, self.finish_set_release.bag
+            self.seal_set, self.finish_set_release.set
         )
         self.finish_set_release.set_ordered(st1, st2)
 
         # pick set, release set, seal set
         self.finish_set_full = Method(
-            "finish_set_full", insole=type_item, bag=type_item
+            "finish_set_full", set=type_item
         )
         self.finish_set_full.set_task(
-            self.finish_set, self.finish_set_full.insole, self.finish_set_full.bag
+            self.finish_set, self.finish_set_full.set
         )
         self.finish_set_full.add_precondition(
-            self.set_available(self.finish_set_full.insole, self.finish_set_full.bag)
+            self.item_pose_is_known(self.finish_set_full.set)
         )
 
         st1 = self.finish_set_full.add_subtask(
-            self.pick_set, self.finish_set_full.insole, self.finish_set_full.bag
+            self.pick_set, self.finish_set_full.set
         )
         st2 = self.finish_set_full.add_subtask(
-            self.release_set, self.finish_set_full.insole, self.finish_set_full.bag
+            self.release_set, self.finish_set_full.set
         )
-        st3 = self.finish_set_full.add_subtask(self.seal_set, self.finish_set_full.bag)
+        st3 = self.finish_set_full.add_subtask(self.seal_set, self.finish_set_full.set)
 
         self.finish_set_full.set_ordered(st1, st2, st3)
 
         # bag_insole
         # insole already in bag
         self.bag_insole_finish = Method(
-            "bag_insole_finish", insole=type_item, bag=type_item
+            "bag_insole_finish", insole=type_item, bag=type_item, set=type_item
         )
         self.bag_insole_finish.set_task(
-            self.bag_insole, self.bag_insole_finish.insole, self.bag_insole_finish.bag
+            self.bag_insole, self.bag_insole_finish.insole, self.bag_insole_finish.bag, self.bag_insole_finish.set
         )
         self.bag_insole_finish.add_precondition(
             Or(
-                self.set_available(
-                    self.bag_insole_finish.insole, self.bag_insole_finish.bag
+                self.item_pose_is_known(
+                    self.bag_insole_finish.set
                 ),
-                self.holding(self.bag_insole_finish.bag),
+                self.holding(self.bag_insole_finish.set)
             )
         )
         self.bag_insole_finish.add_subtask(
-            self.finish_set, self.bag_insole_finish.insole, self.bag_insole_finish.bag
+            self.finish_set, self.bag_insole_finish.set
         )
 
         # insert insole and finish set
         self.bag_insole_full = Method(
-            "bag_insole_full", insole=type_item, bag=type_item
+            "bag_insole_full", insole=type_item, bag=type_item, set=type_item
         )
         self.bag_insole_full.set_task(
-            self.bag_insole, self.bag_insole_full.insole, self.bag_insole_full.bag
+            self.bag_insole, self.bag_insole_full.insole, self.bag_insole_full.bag, self.bag_insole_full.set
         )
         st1 = self.bag_insole_full.add_subtask(
             self.insert_insole, self.bag_insole_full.insole, self.bag_insole_full.bag
         )
         st2 = self.bag_insole_full.add_subtask(
-            self.finish_set, self.bag_insole_full.insole, self.bag_insole_full.bag
+            self.finish_set, self.bag_insole_full.set
         )
         self.bag_insole_full.set_ordered(st1, st2)
 
@@ -423,30 +418,29 @@ class INESDomain(Bridge):
             )
             self.match_insole_bag.add_condition(StartTiming(), self.item_type_is_known(i))
             self.match_insole_bag.add_condition(StartTiming(), self.item_type_is_known(b))
-            self.match_insole_bag.add_effect(EndTiming(), self.item_types_match(i, b), True)
+            self.match_insole_bag.add_effect(EndTiming(), self.item_types_match(), True)
 
-            self.reject_insole, [c, i, b] = self.create_action(
+            self.reject_insole, [c, i] = self.create_action(
                 "reject_insole",
                 conveyor=Location,
                 insole=Item,
-                bag=Item,
                 _callable=actions.reject_insole,
                 duration=10,
             )
             self.reject_insole.add_condition(StartTiming(), self.stationary(c))
             self.reject_insole.add_condition(StartTiming(), self.item_in_fov())
-            self.reject_insole.add_condition(StartTiming(), Not(self.item_types_match(i, b)))
+            self.reject_insole.add_condition(StartTiming(), Not(self.item_types_match()))
             self.reject_insole.add_effect(StartTiming(), self.moving(c), True)
             self.reject_insole.add_effect(StartTiming(), self.stationary(c), False)
             self.reject_insole.add_effect(EndTiming(), self.moving(c), False)
             self.reject_insole.add_effect(EndTiming(), self.stationary(c), True)
             self.reject_insole.add_effect(EndTiming(), self.item_in_fov(), False)
             self.reject_insole.add_effect(EndTiming(), self.item_type_is_known(i), False)
+            self.reject_insole.add_effect(EndTiming(), self.item_pose_is_known(i), False)
 
-            self.get_next_insole, [c, _] = self.create_action(
+            self.get_next_insole, [c] = self.create_action(
                 "get_next_insole",
                 conveyor=Location,
-                insole=Item,
                 _callable=actions.get_next_insole,
                 duration=10,
             )
@@ -470,7 +464,7 @@ class INESDomain(Bridge):
             )
 
             self.open_bag, _ = self.create_action(
-                "open_bag", bag=Item, _callable=actions.open_bag, duration=10
+                "open_bag", _callable=actions.open_bag, duration=10
             )
             self.open_bag.add_condition(StartTiming(), self.bag_is_probably_available())
             self.open_bag.add_effect(EndTiming(), self.bag_is_probably_open(), True)
@@ -481,34 +475,34 @@ class INESDomain(Bridge):
             self.pick_insole.add_condition(StartTiming(), self.item_pose_is_known(i))
             self.pick_insole.add_condition(StartTiming(), self.item_in_fov())
             self.pick_insole.add_condition(StartTiming(), self.holding(self.nothing))
-            self.pick_insole.add_condition(StartTiming(), self.item_types_match(i, b))
+            self.pick_insole.add_condition(StartTiming(), self.item_types_match())
             self.pick_insole.add_effect(EndTiming(), self.holding(i), True)
             self.pick_insole.add_effect(EndTiming(), self.item_pose_is_known(i), False)
             self.pick_insole.add_effect(EndTiming(), self.item_in_fov(), False)
             self.pick_insole.add_effect(EndTiming(), self.holding(self.nothing), False)
 
-            self.pick_set, [i, b] = self.create_action(
+            self.pick_set, [s] = self.create_action(
                 "pick_set",
-                insole=Item,
-                bag=Item,
+                set=Item,
                 _callable=actions.pick_set,
                 duration=30,
             )
-            self.pick_set.add_condition(StartTiming(), self.set_available(i, b))
+            self.pick_set.add_condition(StartTiming(), self.item_pose_is_known(s))
             self.pick_set.add_condition(StartTiming(), self.holding(self.nothing))
             self.pick_set.add_effect(EndTiming(), self.holding(self.nothing), False)
-            self.pick_set.add_effect(EndTiming(), self.holding(b), True)
+            self.pick_set.add_effect(EndTiming(), self.holding(s), True)
+            self.pick_set.add_effect(EndTiming(), self.item_pose_is_known(s), False)
 
             self.insert, [i, b] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert, duration=30
             )
-            self.insert.add_condition(StartTiming(), self.bag_is_available(b))
+            self.insert.add_condition(StartTiming(), self.item_pose_is_known(b))
             self.insert.add_condition(StartTiming(), self.bag_is_open(b))
             self.insert.add_condition(StartTiming(), self.holding(i))
-            self.insert.add_condition(StartTiming(), self.item_types_match(i, b))
+            self.insert.add_condition(StartTiming(), self.item_types_match())
             self.insert.add_effect(EndTiming(), self.insole_inside_bag(i, b), True)
             self.insert.add_effect(EndTiming(), self.bag_is_open(b), False)
-            self.insert.add_effect(EndTiming(), self.bag_is_available(b), False)
+            self.insert.add_effect(EndTiming(), self.item_pose_is_known(b), False)
             self.insert.add_effect(EndTiming(), self.holding(i), False)
             self.insert.add_effect(EndTiming(), self.holding(self.nothing), True)
 
@@ -535,14 +529,16 @@ class INESDomain(Bridge):
             self.perceive_bag.add_effect(
                 EndTiming(), self.bag_is_probably_available(), False
             )
-            self.perceive_bag.add_effect(EndTiming(), self.bag_is_available(b), True)
+            self.perceive_bag.add_effect(EndTiming(), self.bag_is_probably_open(), False)
+            self.perceive_bag.add_effect(EndTiming(), self.item_pose_is_known(b), True)
             self.perceive_bag.add_effect(EndTiming(), self.bag_is_open(b), True)
             self.perceive_bag.add_effect(EndTiming(), self.item_type_is_known(b), True)
 
-            self.perceive_set, [i, b] = self.create_action(
+            self.perceive_set, [i, b, s] = self.create_action(
                 "perceive_set",
                 insole=Item,
                 bag=Item,
+                set=Item,
                 _callable=actions.perceive_set,
                 duration=10,
             )
@@ -550,17 +546,16 @@ class INESDomain(Bridge):
             self.perceive_set.add_effect(
                 EndTiming(), self.insole_inside_bag(i, b), False
             )
-            self.perceive_set.add_effect(EndTiming(), self.set_available(i, b), True)
+            self.perceive_set.add_effect(EndTiming(), self.item_pose_is_known(s), True)
 
-            self.release_set, [i, b] = self.create_action(
+            self.release_set, [s] = self.create_action(
                 "release_set",
-                insole=Item,
-                bag=Item,
+                set=Item,
                 _callable=actions.release_set,
                 duration=10,
             )
-            self.release_set.add_condition(StartTiming(), self.set_available(i, b))
-            self.release_set.add_effect(EndTiming(), self.set_available(i, b), False)
+            self.release_set.add_condition(StartTiming(), self.item_pose_is_known(s))
+            self.release_set.add_effect(EndTiming(), self.item_pose_is_known(s), False)
             self.release_set.add_effect(EndTiming(), self.bag_set_released(), True)
 
             self.seal_set, [b] = self.create_action(
@@ -573,25 +568,25 @@ class INESDomain(Bridge):
             self.seal_set.add_effect(EndTiming(), self.bag_set_released(), False)
             self.seal_set.add_effect(EndTiming(), self.holding(self.nothing), True)
         else:
-            self.reject_insole, [c, i, b] = self.create_action(
-                "reject_insole", conveyor=Location, insole=Item, bag=Item, _callable=actions.reject_insole
+            self.reject_insole, [c, i] = self.create_action(
+                "reject_insole", conveyor=Location, insole=Item, _callable=actions.reject_insole
             )
             self.reject_insole.add_precondition(self.stationary(c))
             self.reject_insole.add_precondition(self.item_in_fov())
-            self.reject_insole.add_precondition(Not(self.item_types_match(i, b)))
+            self.reject_insole.add_precondition(Not(self.item_types_match()))
             self.reject_insole.add_effect(self.item_in_fov(), False)
             self.reject_insole.add_effect(self.item_type_is_known(i), False)
+            self.reject_insole.add_effect(self.item_pose_is_known(i), False)
 
             self.match_insole_bag, [i, b] = self.create_action(
                 "match_insole_bag", insole=Item, bag=Item, _callable=actions.match_insole_bag)
             self.match_insole_bag.add_precondition(self.item_type_is_known(i))
             self.match_insole_bag.add_precondition(self.item_type_is_known(b))
-            self.match_insole_bag.add_effect(self.item_types_match(i, b), True)
+            self.match_insole_bag.add_effect(self.item_types_match(), True)
 
-            self.get_next_insole, [c, _] = self.create_action(
+            self.get_next_insole, [c] = self.create_action(
                 "get_next_insole",
                 conveyor=Location,
-                insole=Item,
                 _callable=actions.get_next_insole,
             )
             self.get_next_insole.add_precondition(self.stationary(c))
@@ -604,49 +599,51 @@ class INESDomain(Bridge):
             self.preload_bag_bundle.add_effect(self.bag_dispenser_has_bags(), True)
 
             self.load_bag, _ = self.create_action(
-                "load_bag", bag=Item, _callable=actions.load_bag
+                "load_bag", _callable=actions.load_bag
             )
             self.load_bag.add_precondition(self.bag_dispenser_has_bags())
             self.load_bag.add_effect(self.bag_is_probably_available(), True)
 
             self.open_bag, _ = self.create_action(
-                "open_bag", bag=Item, _callable=actions.open_bag
+                "open_bag", _callable=actions.open_bag
             )
             self.open_bag.add_precondition(self.bag_is_probably_available())
             self.open_bag.add_effect(self.bag_is_probably_open(), True)
 
-            self.pick_insole, [i, b] = self.create_action(
-                "pick_insole", insole=Item, bag=Item, _callable=actions.pick_insole
+            self.pick_insole, [i] = self.create_action(
+                "pick_insole", insole=Item, _callable=actions.pick_insole
             )
             self.pick_insole.add_precondition(self.item_pose_is_known(i))
             self.pick_insole.add_precondition(self.item_in_fov())
             self.pick_insole.add_precondition(self.holding(self.nothing))
-            self.pick_insole.add_precondition(self.item_types_match(i, b))
+            self.pick_insole.add_precondition(self.item_types_match())
             self.pick_insole.add_effect(self.holding(i), True)
             self.pick_insole.add_effect(self.item_pose_is_known(i), False)
             self.pick_insole.add_effect(self.item_in_fov(), False)
             self.pick_insole.add_effect(self.holding(self.nothing), False)
 
-            self.pick_set, [i, b] = self.create_action(
-                "pick_set", insole=Item, bag=Item, _callable=actions.pick_set
+            self.pick_set, [s] = self.create_action(
+                "pick_set", set=Item, _callable=actions.pick_set
             )
-            self.pick_set.add_precondition(self.set_available(i, b))
+            self.pick_set.add_precondition(self.item_pose_is_known(s))
             self.pick_set.add_precondition(self.holding(self.nothing))
             self.pick_set.add_effect(self.holding(self.nothing), False)
-            self.pick_set.add_effect(self.holding(b), True)
+            self.pick_set.add_effect(self.holding(s), True)
+            self.pick_set.add_effect(self.item_pose_is_known(s), False)
 
             self.insert, [i, b] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert
             )
-            self.insert.add_precondition(self.bag_is_available(b))
+            self.insert.add_precondition(self.item_pose_is_known(b))
             self.insert.add_precondition(self.bag_is_open(b))
             self.insert.add_precondition(self.holding(i))
-            self.insert.add_precondition(self.item_types_match(i, b))
+            self.insert.add_precondition(self.item_types_match())
             self.insert.add_effect(self.insole_inside_bag(i, b), True)
             self.insert.add_effect(self.bag_is_open(b), False)
-            self.insert.add_effect(self.bag_is_available(b), False)
+            self.insert.add_effect(self.item_pose_is_known(b), False)
             self.insert.add_effect(self.holding(i), False)
             self.insert.add_effect(self.holding(self.nothing), True)
+            self.insert.add_effect(self.item_types_match(), False)
 
             self.perceive_insole, [i] = self.create_action(
                 "perceive_insole", insole=Item, _callable=actions.perceive_insole
@@ -660,31 +657,30 @@ class INESDomain(Bridge):
             )
             self.perceive_bag.add_precondition(self.bag_is_probably_available())
             self.perceive_bag.add_effect(self.bag_is_probably_available(), False)
-            self.perceive_bag.add_effect(self.bag_is_available(b), True)
+            self.perceive_bag.add_effect(self.bag_is_probably_open(), False)
+            self.perceive_bag.add_effect(self.item_pose_is_known(b), True)
             self.perceive_bag.add_effect(self.bag_is_open(b), True)
             self.perceive_bag.add_effect(self.item_type_is_known(b), True)
 
-            self.perceive_set, [i, b] = self.create_action(
-                "perceive_set", insole=Item, bag=Item, _callable=actions.perceive_set
+            self.perceive_set, [i, b, s] = self.create_action(
+                "perceive_set", insole=Item, bag=Item, set=Item, _callable=actions.perceive_set
             )
             self.perceive_set.add_precondition(self.insole_inside_bag(i, b))
             self.perceive_set.add_effect(self.insole_inside_bag(i, b), False)
-            self.perceive_set.add_effect(self.set_available(i, b), True)
+            self.perceive_set.add_effect(self.item_pose_is_known(s), True)
 
-            self.release_set, [i, b] = self.create_action(
-                "release_set", insole=Item, bag=Item, _callable=actions.release_set
+            self.release_set, [s] = self.create_action(
+                "release_set", set=Item, _callable=actions.release_set
             )
-            self.release_set.add_precondition(self.set_available(i, b))
-            self.release_set.add_effect(self.set_available(i, b), False)
             self.release_set.add_effect(self.bag_set_released(), True)
 
-            self.seal_set, [b] = self.create_action(
-                "seal_set", bag=Item, _callable=actions.seal_set
+            self.seal_set, [s] = self.create_action(
+                "seal_set", set=Item, _callable=actions.seal_set
             )
-            self.seal_set.add_precondition(self.holding(b))
+            self.seal_set.add_precondition(self.holding(s))
             self.seal_set.add_precondition(self.bag_set_released())
             self.seal_set.add_precondition(self.sealing_machine_ready())
-            self.seal_set.add_effect(self.holding(b), False)
+            self.seal_set.add_effect(self.holding(s), False)
             self.seal_set.add_effect(self.bag_set_released(), False)
             self.seal_set.add_effect(self.holding(self.nothing), True)
 
@@ -701,7 +697,7 @@ class INESDomain(Bridge):
                 self.prepare_bag(self.bag)
             )
             subtask_bag_insole = problem.task_network.add_subtask(
-                self.bag_insole(self.insole, self.bag)
+                self.bag_insole(self.insole, self.bag, self.set)
             )
 
             problem.task_network.set_ordered(subtask_get_insole, subtask_bag_insole)
@@ -709,55 +705,63 @@ class INESDomain(Bridge):
         elif goal == "get_next_insole":
             problem.set_initial_value(self.holding(self.nothing), True)
 
-            subtask_get_insole = problem.task_network.add_subtask(
-                self.get_next_insole, self.conveyor_a, self.insole
+            problem.task_network.add_subtask(
+                self.get_next_insole, self.conveyor_a
             )
         elif goal == "preload_bag_bundle":
             problem.set_initial_value(self.holding(self.nothing), True)
 
-            subtask_prepare_bag = problem.task_network.add_subtask(
+            problem.task_network.add_subtask(
                 self.preload_bag_bundle
             )
         elif goal == "load_bag":
             problem.set_initial_value(self.holding(self.nothing), True)
             problem.set_initial_value(self.bag_dispenser_has_bags(), True)
 
-            subtask_prepare_bag = problem.task_network.add_subtask(
-                self.load_bag, self.bag
+            problem.task_network.add_subtask(
+                self.load_bag
             )
         elif goal == "pick_insole":
             problem.set_initial_value(self.holding(self.nothing), True)
             problem.set_initial_value(self.item_pose_is_known(self.insole), True)
             problem.set_initial_value(self.item_type_is_known(self.insole), True)
             problem.set_initial_value(self.item_type_is_known(self.bag), True)
-            problem.set_initial_value(self.bag_is_available(self.bag), True)
+            problem.set_initial_value(self.item_pose_is_known(self.bag), True)
+            problem.set_initial_value(self.item_types_match(), True)
             problem.set_initial_value(self.bag_is_open(self.bag), True)
             problem.set_initial_value(self.bag_dispenser_has_bags(), True)
             problem.set_initial_value(self.item_in_fov(), True)
 
-            subtask_bag_insole = problem.task_network.add_subtask(
+            problem.task_network.add_subtask(
                 self.pick_insole, self.insole
             )
         elif goal == "open_bag":
             problem.set_initial_value(self.holding(self.nothing), True)
             problem.set_initial_value(self.bag_is_probably_available(), True)
 
-            subtask_prepare_bag = problem.task_network.add_subtask(
-                self.open_bag, self.bag
+            problem.task_network.add_subtask(
+                self.open_bag
+            )
+        elif goal == "insert":
+            problem.set_initial_value(self.holding(self.insole), True)
+            problem.set_initial_value(self.holding(self.nothing), False)
+            problem.set_initial_value(self.item_types_match(), True)
+            problem.set_initial_value(self.item_pose_is_known(self.bag), True)
+            problem.set_initial_value(self.bag_is_open(self.bag), True)
+
+            problem.task_network.add_subtask(
+                self.insert, self.insole, self.bag
             )
         elif goal == "release_set":
-            problem.set_initial_value(self.holding(self.bag), True)
-            problem.set_initial_value(self.set_available(self.insole, self.bag), True)
-
-            subtask_bag_insole = problem.task_network.add_subtask(
-                self.release_set, self.insole, self.bag
+            problem.task_network.add_subtask(
+                self.release_set, self.set
             )
         elif goal == "seal_set":
-            problem.set_initial_value(self.holding(self.bag), True)
+            problem.set_initial_value(self.holding(self.set), True)
             problem.set_initial_value(self.bag_set_released(), True)
 
-            subtask_bag_insole = problem.task_network.add_subtask(
-                self.seal_set, self.bag
+            problem.task_network.add_subtask(
+                self.seal_set, self.set
             )
         else:
             logerr(

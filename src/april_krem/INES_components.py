@@ -20,13 +20,16 @@ class Item(Enum):
     nothing = "nothing"
     insole = "insole"
     bag = "bag"
+    set = "set"
 
 
 class Location(Enum):
     conveyor_a = "conveyor_a"
     conveyor_b = "conveyor_b"
+    dispenser = "dispenser"
     in_hand = "in_hand"
     in_bag = "in_bag"
+    unknown = "unknown"
 
 
 class Environment:
@@ -41,8 +44,13 @@ class Environment:
 
         self._fact_generator = FactGenerationWithConfig(facts_config_path)
 
-        self.item_in_hand = Item.nothing
-        self.item_in_bag = Item.nothing
+        self.item_at_location = {Item.insole: Location.unknown, Item.bag: Location.unknown, Item.set: Location.unknown}
+        self.types_match = False
+        self.insole_in_fov = False
+        self.set_released = False
+        self.bag_probably_available = False
+        self.bag_probably_open = False
+        self.bag_open = False
 
     def stationary(self, conveyor: Location) -> bool:
         facts = self._fact_generator.generate_facts_with_name("stationary")
@@ -81,6 +89,41 @@ class Environment:
         else:
             return False
 
+    def human_available(self) -> bool:
+        return True
+
+    def holding(self, item: Item) -> bool:
+        return self.item_at_location.get(item, Location.unknown) == Location.in_hand
+
+    def item_pose_is_known(self, item: Item) -> bool:
+        item_loc = self.item_at_location.get(item, Location.unknown)
+        return item_loc != Location.unknown and item_loc != Location.in_hand
+
+    def item_type_is_known(self, item: Item) -> bool:
+        item_loc = self.item_at_location.get(item, Location.unknown)
+        return item_loc != Location.unknown and item_loc != Location.in_hand
+
+    def item_types_match(self) -> bool:
+        return self.types_match
+
+    def item_in_fov(self) -> bool:
+        return self.insole_in_fov
+
+    def bag_set_released(self) -> bool:
+        return self.set_released
+
+    def bag_is_probably_available(self) -> bool:
+        return self.bag_probably_available
+
+    def bag_is_probably_open(self) -> bool:
+        return self.bag_probably_open
+
+    def bag_is_open(self, bag: Item) -> bool:
+        return self.bag_open
+
+    def insole_inside_bag(self, insole: Item, bag: Item) -> bool:
+        return self.item_at_location.get(insole, Location.unknown) == Location.in_bag
+
 
 class Actions:
     def __init__(self, env: Environment):
@@ -108,7 +151,7 @@ class Actions:
         self._current_action_status = "LOST"
 
     def run_symbolic_action(
-        self, action_name: str, action_arguments = [], grasp_facts=[], timeout=0.0
+        self, action_name: str, action_arguments = [], grasp_facts = [], timeout = 0.0
     ) -> bool:
         run_symbolic_action_goal_msg = RunSymbolicActionGoal(
             action_type=action_name, action_arguments=action_arguments, grasp_facts=grasp_facts
@@ -199,30 +242,44 @@ class Actions:
         result = self.run_symbolic_action("wait_for_human_intervention")
         return result
 
-    def reject_insole(self, conveyor: Location):
+    def reject_insole(self, conveyor: Location, insole: Item):
         # arguments: [ID of insole]
         result = self.run_symbolic_action("reject_insole", action_arguments=["1"], timeout=60.0)
+        if result:
+            self._env.item_at_location[insole] = Location.unknown
+            self._env.insole_in_fov = False
+            self._env.types_match = False
         return result
 
-    def get_next_insole(self, conveyor: Location, insole: Item):
+    def get_next_insole(self, conveyor: Location):
         result = self.run_symbolic_action("get_next_insole", timeout=60.0)
+        if result:
+            self._env.insole_in_fov = True
         return result
 
     def preload_bag_bundle(self):
         result = self.run_symbolic_action("preload_bag_bundle")
         return result
 
-    def load_bag(self, bag: Item):
+    def load_bag(self):
         result = self.run_symbolic_action("load_bag", timeout=60.0)
+        if result:
+            self._env.bag_probably_available = True
         return result
 
-    def open_bag(self, bag: Item):
+    def open_bag(self):
         result = self.run_symbolic_action("open_bag", timeout=60.0)
+        if result:
+            self._env.bag_probably_open = True
         return result
 
     def match_insole_bag(self, insole: Item, bag: Item):
         # arguments: [ID of insole, ID of bag]
         result = self.run_symbolic_action("match_insole_bag", action_arguments=["1", "1"], timeout=60.0)
+        if result:
+            self._env.types_match = True
+        else:
+            self._env.types_match = False
         return result
 
     def pick_insole(self, insole: Item):
@@ -233,10 +290,11 @@ class Actions:
             "pick_insole", ["1"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
-            self._env.item_in_hand = insole
+            self._env.item_at_location[insole] = Location.in_hand
+            self._env.insole_in_fov = False
         return result
 
-    def pick_set(self, insole: Item, bag: Item):
+    def pick_set(self, set: Item):
         grasp_facts = self._grasp_library_srv("mia", "set_1", "sealing", False)
         # TODO Object ID
         # arguments: [ID of set]
@@ -244,7 +302,7 @@ class Actions:
             "pick_set", ["1"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
-            self._env.item_in_hand = bag
+            self._env.item_at_location[set] = Location.in_hand
         return result
 
     def insert(self, insole: Item, bag: Item):
@@ -252,31 +310,46 @@ class Actions:
         # arguments: [ID of bag (workaround: ID of set)​]
         result = self.run_symbolic_action("insert", ["1"], timeout=180.0)
         if result:
-            self._env.item_in_hand = Item.nothing
-            self._env.item_in_bag = insole
+            self._env.item_at_location[insole] = Location.in_bag
+            self._env.bag_open = False
+            self._env.types_match = False
+            self._env.item_at_location[bag] = Location.unknown
         return result
 
     def perceive_insole(self, insole: Item):
         result = self.run_symbolic_action("perceive_insole", timeout=60.0)
+        if result:
+            self._env.item_at_location[insole] = Location.conveyor_a
         return result
 
     def perceive_bag(self, bag: Item):
         result = self.run_symbolic_action("perceive_bag", timeout=60.0)
+        if result:
+            self._env.item_at_location[bag] = Location.dispenser
+            self._env.bag_probably_available = False
+            self._env.bag_probably_open = False
+            self._env.bag_open = True
         return result
 
-    def perceive_set(self, insole: Item, bag: Item):
+    def perceive_set(self, insole: Item, bag: Item, set: Item):
         result = self.run_symbolic_action("perceive_set", timeout=60.0)
+        if result:
+            self._env.item_at_location[set] = Location.dispenser
+            self._env.item_at_location[insole] = Location.unknown
         return result
 
-    def release_set(self, insole: Item, bag: Item):
+    def release_set(self, set: Item):
         result = self.run_symbolic_action("release_set", timeout=60.0)
+        if result:
+            self._env.set_released = True
+
         return result
 
-    def seal_set(self, bag: Item):
+    def seal_set(self, set: Item):
         # TODO Object ID
         # arguments: [ID of set​]
         result = self.run_symbolic_action("seal_set", ["1"], timeout=180.0)
         if result:
-            self._env.item_in_hand = Item.nothing
-            self._env.item_in_bag = Item.nothing
+            self._env.item_at_location[set] = Location.unknown
+            self._env.set_released = False
         return result
