@@ -268,8 +268,8 @@ class Actions:
         result = self.run_symbolic_action("perceive_set", timeout=60.0)
         return result
 
-    def release_bag(self, insole: Item, bag: Item):
-        result = self.run_symbolic_action("release_bag", timeout=60.0)
+    def release_set(self, insole: Item, bag: Item):
+        result = self.run_symbolic_action("release_set", timeout=60.0)
         return result
 
     def seal_set(self, bag: Item):

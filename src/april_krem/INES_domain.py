@@ -326,7 +326,7 @@ class INESDomain(Bridge):
             self.holding(self.finish_set_release.bag)
         )
         st1 = self.finish_set_release.add_subtask(
-            self.release_bag,
+            self.release_set,
             self.finish_set_release.insole,
             self.finish_set_release.bag,
         )
@@ -350,7 +350,7 @@ class INESDomain(Bridge):
             self.pick_set, self.finish_set_full.insole, self.finish_set_full.bag
         )
         st2 = self.finish_set_full.add_subtask(
-            self.release_bag, self.finish_set_full.insole, self.finish_set_full.bag
+            self.release_set, self.finish_set_full.insole, self.finish_set_full.bag
         )
         st3 = self.finish_set_full.add_subtask(self.seal_set, self.finish_set_full.bag)
 
@@ -552,16 +552,16 @@ class INESDomain(Bridge):
             )
             self.perceive_set.add_effect(EndTiming(), self.set_available(i, b), True)
 
-            self.release_bag, [i, b] = self.create_action(
-                "release_bag",
+            self.release_set, [i, b] = self.create_action(
+                "release_set",
                 insole=Item,
                 bag=Item,
-                _callable=actions.release_bag,
+                _callable=actions.release_set,
                 duration=10,
             )
-            self.release_bag.add_condition(StartTiming(), self.set_available(i, b))
-            self.release_bag.add_effect(EndTiming(), self.set_available(i, b), False)
-            self.release_bag.add_effect(EndTiming(), self.bag_set_released(), True)
+            self.release_set.add_condition(StartTiming(), self.set_available(i, b))
+            self.release_set.add_effect(EndTiming(), self.set_available(i, b), False)
+            self.release_set.add_effect(EndTiming(), self.bag_set_released(), True)
 
             self.seal_set, [b] = self.create_action(
                 "seal_set", bag=Item, _callable=actions.seal_set, duration=60
@@ -671,12 +671,12 @@ class INESDomain(Bridge):
             self.perceive_set.add_effect(self.insole_inside_bag(i, b), False)
             self.perceive_set.add_effect(self.set_available(i, b), True)
 
-            self.release_bag, [i, b] = self.create_action(
-                "release_bag", insole=Item, bag=Item, _callable=actions.release_bag
+            self.release_set, [i, b] = self.create_action(
+                "release_set", insole=Item, bag=Item, _callable=actions.release_set
             )
-            self.release_bag.add_precondition(self.set_available(i, b))
-            self.release_bag.add_effect(self.set_available(i, b), False)
-            self.release_bag.add_effect(self.bag_set_released(), True)
+            self.release_set.add_precondition(self.set_available(i, b))
+            self.release_set.add_effect(self.set_available(i, b), False)
+            self.release_set.add_effect(self.bag_set_released(), True)
 
             self.seal_set, [b] = self.create_action(
                 "seal_set", bag=Item, _callable=actions.seal_set
@@ -745,12 +745,12 @@ class INESDomain(Bridge):
             subtask_prepare_bag = problem.task_network.add_subtask(
                 self.open_bag, self.bag
             )
-        elif goal == "release_bag":
+        elif goal == "release_set":
             problem.set_initial_value(self.holding(self.bag), True)
             problem.set_initial_value(self.set_available(self.insole, self.bag), True)
 
             subtask_bag_insole = problem.task_network.add_subtask(
-                self.release_bag, self.insole, self.bag
+                self.release_set, self.insole, self.bag
             )
         elif goal == "seal_set":
             problem.set_initial_value(self.holding(self.bag), True)
@@ -764,6 +764,6 @@ class INESDomain(Bridge):
                 (
                     f"Task ({goal}) is unknown! Please use a task from this list: "
                     "get_next_insole, preload_bag_bundle, load_bag, pick_insole, "
-                    "open_bag, release_bag, seal_set"
+                    "open_bag, release_set, seal_set"
                 )
             )
