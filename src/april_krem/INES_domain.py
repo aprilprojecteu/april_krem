@@ -456,7 +456,7 @@ class INESDomain(Bridge):
             )
 
             self.load_bag, _ = self.create_action(
-                "load_bag", bag=Item, _callable=actions.load_bag, duration=10
+                "load_bag", _callable=actions.load_bag, duration=10
             )
             self.load_bag.add_condition(StartTiming(), self.bag_dispenser_has_bags())
             self.load_bag.add_effect(
@@ -469,8 +469,8 @@ class INESDomain(Bridge):
             self.open_bag.add_condition(StartTiming(), self.bag_is_probably_available())
             self.open_bag.add_effect(EndTiming(), self.bag_is_probably_open(), True)
 
-            self.pick_insole, [i, b] = self.create_action(
-                "pick_insole", insole=Item, bag=Item, _callable=actions.pick_insole, duration=30
+            self.pick_insole, [i] = self.create_action(
+                "pick_insole", insole=Item, _callable=actions.pick_insole, duration=30
             )
             self.pick_insole.add_condition(StartTiming(), self.item_pose_is_known(i))
             self.pick_insole.add_condition(StartTiming(), self.item_in_fov())
@@ -554,17 +554,15 @@ class INESDomain(Bridge):
                 _callable=actions.release_set,
                 duration=10,
             )
-            self.release_set.add_condition(StartTiming(), self.item_pose_is_known(s))
-            self.release_set.add_effect(EndTiming(), self.item_pose_is_known(s), False)
             self.release_set.add_effect(EndTiming(), self.bag_set_released(), True)
 
-            self.seal_set, [b] = self.create_action(
-                "seal_set", bag=Item, _callable=actions.seal_set, duration=60
+            self.seal_set, [s] = self.create_action(
+                "seal_set", set=Item, _callable=actions.seal_set, duration=60
             )
-            self.seal_set.add_condition(StartTiming(), self.holding(b))
+            self.seal_set.add_condition(StartTiming(), self.holding(s))
             self.seal_set.add_condition(StartTiming(), self.bag_set_released())
             self.seal_set.add_condition(StartTiming(), self.sealing_machine_ready())
-            self.seal_set.add_effect(EndTiming(), self.holding(b), False)
+            self.seal_set.add_effect(EndTiming(), self.holding(s), False)
             self.seal_set.add_effect(EndTiming(), self.bag_set_released(), False)
             self.seal_set.add_effect(EndTiming(), self.holding(self.nothing), True)
         else:
