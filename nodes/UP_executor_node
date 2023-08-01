@@ -112,7 +112,6 @@ class AprilPlanDispatcher:
         # Execute action
         self._plan_viz.execute(self._node_id_to_action_map[action[0]])
         result = executor(**parameters)
-        self._executed_actions.add(action[1]["action"])
 
         if rospy.is_shutdown():
             return False
@@ -120,6 +119,7 @@ class AprilPlanDispatcher:
         if result is not None:
             if result:
                 self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
+                self._executed_actions.add(action[1]["action"])
             else:
                 self._plan_viz.fail(self._node_id_to_action_map[action[0]])
                 sys.exit()

@@ -44,7 +44,7 @@ class Environment:
 
         self._fact_generator = FactGenerationWithConfig(facts_config_path)
 
-        self.item_at_location = {Item.insole: Location.unknown, Item.bag: Location.unknown, Item.set: Location.unknown}
+        self.item_at_location = {Item.insole: Location.unknown, Item.bag: Location.unknown, Item.set: Location.unknown, Item.nothing: Location.in_hand}
         self.types_match = False
         self.insole_in_fov = False
         self.set_released = False
@@ -291,6 +291,7 @@ class Actions:
         )
         if result:
             self._env.item_at_location[insole] = Location.in_hand
+            self._env.item_at_location[Item.nothing] = Location.unknown
             self._env.insole_in_fov = False
         return result
 
@@ -303,6 +304,7 @@ class Actions:
         )
         if result:
             self._env.item_at_location[set] = Location.in_hand
+            self._env.item_at_location[Item.nothing] = Location.unknown
         return result
 
     def insert(self, insole: Item, bag: Item):
@@ -311,6 +313,7 @@ class Actions:
         result = self.run_symbolic_action("insert", ["1"], timeout=180.0)
         if result:
             self._env.item_at_location[insole] = Location.in_bag
+            self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.bag_open = False
             self._env.types_match = False
             self._env.item_at_location[bag] = Location.unknown
@@ -351,5 +354,6 @@ class Actions:
         result = self.run_symbolic_action("seal_set", ["1"], timeout=180.0)
         if result:
             self._env.item_at_location[set] = Location.unknown
+            self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.set_released = False
         return result
