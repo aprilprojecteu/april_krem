@@ -14,7 +14,7 @@ class INESDomain(Bridge):
     def __init__(self, temporal: bool = False) -> None:
         Bridge.__init__(self)
 
-        env = Environment()
+        self._env = Environment()
 
         # Create types for planning based on class types
         self.create_types([Item, Location])
@@ -22,36 +22,42 @@ class INESDomain(Bridge):
         type_location = self.get_type(Location)
 
         # Create fluents for planning
-        self.holding = self.create_fluent_from_function(env.holding)
+        self.holding = self.create_fluent_from_function(self._env.holding)
         self.item_pose_is_known = self.create_fluent_from_function(
-            env.item_pose_is_known
+            self._env.item_pose_is_known
         )
-        self.item_in_fov = self.create_fluent_from_function(env.item_in_fov)
-        self.bag_set_released = self.create_fluent_from_function(env.bag_set_released)
+        self.item_in_fov = self.create_fluent_from_function(self._env.item_in_fov)
+        self.bag_set_released = self.create_fluent_from_function(
+            self._env.bag_set_released
+        )
         self.bag_dispenser_has_bags = self.create_fluent_from_function(
-            env.bag_dispenser_has_bags
+            self._env.bag_dispenser_has_bags
         )
         self.sealing_machine_ready = self.create_fluent_from_function(
-            env.sealing_machine_ready
+            self._env.sealing_machine_ready
         )
         self.item_type_is_known = self.create_fluent_from_function(
-            env.item_type_is_known
+            self._env.item_type_is_known
         )
-        self.item_types_match = self.create_fluent_from_function(env.item_types_match)
+        self.item_types_match = self.create_fluent_from_function(
+            self._env.item_types_match
+        )
         self.not_checked_item_types = self.create_fluent_from_function(
-            env.not_checked_item_types
+            self._env.not_checked_item_types
         )
-        self.insole_inside_bag = self.create_fluent_from_function(env.insole_inside_bag)
+        self.insole_inside_bag = self.create_fluent_from_function(
+            self._env.insole_inside_bag
+        )
         self.bag_is_probably_available = self.create_fluent_from_function(
-            env.bag_is_probably_available
+            self._env.bag_is_probably_available
         )
         self.bag_is_probably_open = self.create_fluent_from_function(
-            env.bag_is_probably_open
+            self._env.bag_is_probably_open
         )
-        self.bag_is_open = self.create_fluent_from_function(env.bag_is_open)
+        self.bag_is_open = self.create_fluent_from_function(self._env.bag_is_open)
 
-        self.moving = self.create_fluent_from_function(env.moving)
-        self.stationary = self.create_fluent_from_function(env.stationary)
+        self.moving = self.create_fluent_from_function(self._env.moving)
+        self.stationary = self.create_fluent_from_function(self._env.stationary)
 
         # Create objects for both planning and execution
         self.items = self.create_enum_objects(Item)
@@ -69,7 +75,7 @@ class INESDomain(Bridge):
         self.unknown = self.objects[Location.unknown.name]
 
         # Create actions for planning
-        self._create_domain_actions(env, temporal)
+        self._create_domain_actions(temporal)
 
         # Tasks
         self.get_insole = Task("get_insole", conveyor=type_location, insole=type_item)
@@ -426,8 +432,8 @@ class INESDomain(Bridge):
             self.bag_insole_full,
         )
 
-    def _create_domain_actions(self, env, temporal: bool = False) -> None:
-        actions = Actions(env)
+    def _create_domain_actions(self, temporal: bool = False) -> None:
+        actions = Actions(self._env)
 
         if temporal:
             self.match_insole_bag, [i, b] = self.create_action(

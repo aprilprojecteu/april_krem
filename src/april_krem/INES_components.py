@@ -83,6 +83,23 @@ class Environment:
             f"Bag open: {self.bag_open}"
         )
 
+    def reset_env(self) -> None:
+        self.item_at_location = {
+            Item.insole: Location.unknown,
+            Item.bag: Location.unknown,
+            Item.set: Location.unknown,
+            Item.nothing: Location.in_hand,
+        }
+        self.types_match = False
+        self.not_checked_types = True
+        self.insole_in_fov = False
+        self.set_released = False
+        self.bag_probably_available = False
+        self.bag_probably_open = False
+        self.bag_open = False
+
+        self._perceived_objects = {}
+
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
     ) -> ObjectsEstimatedPosesSrvResponse:

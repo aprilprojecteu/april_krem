@@ -29,7 +29,9 @@ class AprilPlanDispatcher:
     ):
         self._domain = Domain(use_case=use_case, temporal=temporal_actions)
 
-        self._dispatcher = PlanDispatcher(self.plan_and_execute, monitoring)
+        self._dispatcher = PlanDispatcher(
+            self._domain, self.plan_and_execute, monitoring
+        )
         self._plan = None
         self._plan_graph = None
         self._goals = []
@@ -81,7 +83,6 @@ class AprilPlanDispatcher:
             pass
 
     def _gesture_cb(self, msg: PersonGesturesList):
-        # msg.person_gestures_list[0].gesture_left.gesture
         # TODO Use complete list
         for gesture in msg.person_gestures_list:
             if gesture.gesture_left.gesture == Gesture.CONTINUE:
@@ -157,21 +158,24 @@ def main():
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         if PlanDispatcher.STATE == KREM_STATE.START:
-            rate.sleep()
+            pass
         elif PlanDispatcher.STATE == KREM_STATE.ACTIVE:
             result = dispatcher.plan_and_execute(goal=goal)
             rospy.loginfo(
                 "DispatcherROS: Dispatcher finished with result " + str(result)
             )
         elif PlanDispatcher.STATE == KREM_STATE.PAUSED:
-            rate.sleep()
+            pass
         elif PlanDispatcher.STATE == KREM_STATE.CANCELED:
-            rate.sleep()
+            pass
         elif PlanDispatcher.STATE == KREM_STATE.FINISHED:
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+            rospy.sleep(10)
         elif PlanDispatcher.STATE == KREM_STATE.ERROR:
-            rate.sleep()
-        rospy.sleep(10)
+            pass
+        elif PlanDispatcher.STATE == KREM_STATE.WAITING:
+            pass
+        rate.sleep()
 
 
 if __name__ == "__main__":

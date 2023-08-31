@@ -38,8 +38,10 @@ class PlanDispatcher:
     HICEM_ACTION_SERVER = actionlib.SimpleActionClient(
         "/hicem/run/symbolic_action", RunSymbolicActionAction
     )
+    DOMAIN = None
 
-    def __init__(self, replan_cb=None, enable_monitor: bool = False):
+    def __init__(self, domain, replan_cb=None, enable_monitor: bool = False):
+        PlanDispatcher.DOMAIN = domain
         self._plan = None
         self._graph = None
         self._executor = None
@@ -176,7 +178,9 @@ class PlanDispatcher:
 
     def wait_for_human_intervention(self, display_message: str = ""):
         PlanDispatcher.change_state(KREM_STATE.WAITING)
-        result = self.run_symbolic_action("wait_for_human_intervention")
+        result = self.run_symbolic_action(
+            "wait_for_human_intervention", [display_message]
+        )
         PlanDispatcher.change_state(KREM_STATE.ACTIVE)
         return result
 
@@ -218,6 +222,8 @@ class PlanDispatcher:
     @classmethod
     def _before_canceled(cls) -> None:
         cls.HICEM_ACTION_SERVER.cancel_all_goals()
+        if cls.DOMAIN is not None:
+            cls.DOMAIN.specific_domain._env.reset_env()
 
     @classmethod
     def _before_timeout(cls) -> None:
