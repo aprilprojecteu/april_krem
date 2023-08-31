@@ -1,73 +1,125 @@
 #!/usr/bin/env python3
-import sys
-
-# data structures
-from typing import Set, Tuple, Dict
-
-import networkx as nx
 
 # ROS
 import rospy
 
 # UP
-from unified_planning.plans import ActionInstance
 from unified_planning.plans.plan import PlanKind
 from unified_planning.model.metrics import (
     MinimizeMakespan,
     MinimizeSequentialPlanLength,
 )
-from up_esb.plexmo import PlanDispatcher
-from up_esb.executor import Executor
 
 # April
 from april_krem.domain import Domain
-from april_krem.plan_visualization import PlanVisualization
+from april_krem.plan_dispatcher import PlanDispatcher, KREM_STATE
+from april_msgs.msg import (
+    GestureBackupButtonStates,
+    Gesture,
+    PersonGesturesList,
+)
 
 
 class AprilPlanDispatcher:
-    def __init__(self, domain: Domain = None, temporal_actions: bool = False):
-        if domain is None:
-            rospy.signal_shutdown(
-                "DispatcherROS: Planning domain not specified! Shutting down dispatcher!"
-            )
-        self._domain = domain
-        if temporal_actions:
-            self._dispatcher = Executor()
-            # self._dispatcher.set_dispatch_callback(self.parallel_dispatch_cb)
-        else:
-            self._dispatcher = PlanDispatcher()
-            self._dispatcher.set_dispatch_callback(self.dispatch_cb)
+    def __init__(
+        self,
+        use_case: str = "",
+        temporal_actions: bool = False,
+        monitoring: bool = False,
+    ):
+        self._domain = Domain(use_case=use_case, temporal=temporal_actions)
+
+        self._dispatcher = PlanDispatcher(self.plan_and_execute, monitoring)
         self._plan = None
-        self._node_id_to_action_map: Dict[int, ActionInstance] = {}
+        self._plan_graph = None
         self._goals = []
-        self._executed_actions: Set[str] = set()
         self._temporal_actions = temporal_actions
 
         self._timeout = 60.0
 
-        self._plan_viz = None
+        # Gesture Topic
+        self._gestures = rospy.Subscriber(
+            "/pem/human/gesture_results", PersonGesturesList, self._gesture_cb
+        )
 
-        # Parameter if preconditions and effects should be checked (enable monitor)
-        self._enable_monitor = rospy.get_param("~enable_monitor", default="True")
+        # Gesture Backup Buttons Topic
+        self._gesture_backup_buttons = rospy.Subscriber(
+            "/isim/hmi/gesture_backup_buttons",
+            GestureBackupButtonStates,
+            self._gesture_backup_button_cb,
+        )
 
-    def plan(self, goal=None) -> nx.DiGraph:
+    def _gesture_backup_button_cb(self, msg: GestureBackupButtonStates):
+        # VALIDATE
+        if msg.gesture_backup_button_state_0:
+            pass
+        # CANCEL
+        if msg.gesture_backup_button_state_1:
+            rospy.logwarn(
+                "Gesture Backup Button 1 pressed! Canceling action execution."
+            )
+            PlanDispatcher.change_state(KREM_STATE.CANCELED)
+        # STOP
+        elif msg.gesture_backup_button_state_2:
+            rospy.logwarn("Gesture Backup Button 2 pressed! Pausing action execution.")
+            PlanDispatcher.change_state(KREM_STATE.PAUSED)
+        # CONTINUE
+        elif msg.gesture_backup_button_state_3:
+            rospy.logwarn("Gesture Backup Button 3 pressed! Resuming action execution.")
+            PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+        # RETRIEVE
+        if msg.gesture_backup_button_state_4:
+            pass
+        # UNUSED
+        if msg.gesture_backup_button_state_5:
+            pass
+        # UNUSED
+        if msg.gesture_backup_button_state_6:
+            pass
+        # HOME?
+        if msg.gesture_backup_button_state_7:
+            pass
+
+    def _gesture_cb(self, msg: PersonGesturesList):
+        # msg.person_gestures_list[0].gesture_left.gesture
+        # TODO Use complete list
+        for gesture in msg.person_gestures_list:
+            if gesture.gesture_left.gesture == Gesture.CONTINUE:
+                rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
+                PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+                return
+            elif gesture.gesture_right.gesture == Gesture.CONTINUE:
+                rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
+                PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+                return
+            elif gesture.gesture_left.gesture == Gesture.STOP:
+                rospy.logwarn("Gesture STOP detected! Execution paused.")
+                PlanDispatcher.change_state(KREM_STATE.PAUSED)
+                return
+            elif gesture.gesture_right.gesture == Gesture.STOP:
+                rospy.logwarn("Gesture STOP detected! Execution paused.")
+                PlanDispatcher.change_state(KREM_STATE.PAUSED)
+                return
+            elif gesture.gesture_left.gesture == Gesture.CANCEL:
+                rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
+                PlanDispatcher.change_state(KREM_STATE.CANCELED)
+                return
+            elif gesture.gesture_right.gesture == Gesture.CANCEL:
+                rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
+                PlanDispatcher.change_state(KREM_STATE.CANCELED)
+                return
+
+    def plan_and_execute(self, goal=None) -> bool:
         self._domain.set_goal(goal)
 
         if self._temporal_actions:
             plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
             if plan is not None:
-                rospy.loginfo("DispatcherROS: Found Plan!\n")
+                rospy.loginfo("DispatcherROS: Found Plan!")
                 for start, action, duration in plan.timed_actions:
-                    rospy.loginfo("%s: %s [%s]" % (float(start), action, float(duration)))
-                if self._plan_viz is None:
-                    actions_viz = [a[1] for a in plan.timed_actions]
-                    self._plan_viz = PlanVisualization()
-                    self._plan_viz.set_actions(actions_viz)
-                    # create map between executed graph nodes and plan action instances for visualization
-                    id = 1
-                    for action in actions_viz:
-                        self._node_id_to_action_map[id] = action
-                        id += 1
+                    rospy.loginfo(
+                        "%s: %s [%s]" % (float(start), action, float(duration))
+                    )
         else:
             plan = self._domain.solve(
                 planner_name="aries", metric=MinimizeSequentialPlanLength()
@@ -76,79 +128,17 @@ class AprilPlanDispatcher:
                 # Convert to sequential plan for visualization and execution
                 plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
                 rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
-                if self._plan_viz is None:
-                    self._plan_viz = PlanVisualization()
-                    self._plan_viz.set_actions(plan.actions)
-                    # create map between executed graph nodes and plan action instances for visualization
-                    id = 1
-                    for action in plan.actions:
-                        self._node_id_to_action_map[id] = action
-                        id += 1
 
         if plan is not None:
-            self._plan = self._domain.specific_domain.get_executable_graph(plan)
-            return self._plan
+            self._plan = plan
+            self._plan_graph = self._domain.specific_domain.get_executable_graph(plan)
+
+            rospy.loginfo("DispatcherROS: Started execution of plan!")
+            result = self._dispatcher.execute_plan(self._plan, self._plan_graph)
+            return result
         else:
             rospy.logerr("Could not find plan!")
-            return None
-
-    def execute(self, plan_graph: nx.DiGraph) -> bool:
-        result = False
-        if self._temporal_actions:
-            result = self._dispatcher.execute(plan_graph)
-        else:
-            result = self._dispatcher.execute_plan(plan_graph)
-        return result
-
-    def dispatch_cb(self, action: Tuple[str, dict]) -> bool:
-        rospy.loginfo(
-            f"\033[92mDispatcherROS: Dispatching action {action[1]['action']}\033[0m"
-        )
-
-        parameters = action[1]["parameters"]
-        context = action[1]["context"]
-        executor = context[action[1]["action"]]
-
-        # Execute action
-        self._plan_viz.execute(self._node_id_to_action_map[action[0]])
-        result = executor(**parameters)
-
-        if rospy.is_shutdown():
             return False
-
-        if result is not None:
-            if result:
-                self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
-                self._executed_actions.add(action[1]["action"])
-            else:
-                self._plan_viz.fail(self._node_id_to_action_map[action[0]])
-                sys.exit()
-
-        return result is not None and result
-
-    async def parallel_dispatch_cb(self, action: Tuple[str, dict]) -> bool:
-        rospy.loginfo(
-            f"\033[92mDispatcherROS: Dispatching action {action[1]['action']}\033[0m"
-        )
-        parameters = action[1]["parameters"]
-        context = action[1]["context"]
-        executor = context[action[1]["action"]]
-
-        # Execute action
-        self._plan_viz.execute(self._node_id_to_action_map[action[0]])
-        result = executor(**parameters)
-        self._executed_actions.add(action[1]["action"])
-
-        if rospy.is_shutdown():
-            return False
-
-        if result is not None:
-            if result:
-                self._plan_viz.succeed(self._node_id_to_action_map[action[0]])
-            else:
-                self._plan_viz.fail(self._node_id_to_action_map[action[0]])
-
-        return result is not None and result
 
 
 def main():
@@ -157,22 +147,31 @@ def main():
     use_case = rospy.get_param("~use_case", default="uc6")
     temporal_actions = rospy.get_param("~temporal_actions", default=False)
     goal = rospy.get_param("~goal", default="")
+    enable_monitor = rospy.get_param("~enable_monitor", default="False")
 
     if not goal:
         goal = None
 
-    domain = Domain(use_case=use_case, temporal=temporal_actions)
+    dispatcher = AprilPlanDispatcher(use_case, temporal_actions, enable_monitor)
 
-    dispatcher = AprilPlanDispatcher(domain, temporal_actions)
-    plan = dispatcher.plan(goal=goal)
-
-    if plan is not None:
-        # Execute the plan
-        rospy.loginfo("DispatcherROS: Started execution of plan!")
-        dispatcher_result = dispatcher.execute(plan)
-        rospy.loginfo(
-            "DispatcherROS: Dispatcher finished with result " + str(dispatcher_result)
-        )
+    rate = rospy.Rate(10)
+    while not rospy.is_shutdown():
+        if PlanDispatcher.STATE == KREM_STATE.START:
+            rate.sleep()
+        elif PlanDispatcher.STATE == KREM_STATE.ACTIVE:
+            result = dispatcher.plan_and_execute(goal=goal)
+            rospy.loginfo(
+                "DispatcherROS: Dispatcher finished with result " + str(result)
+            )
+        elif PlanDispatcher.STATE == KREM_STATE.PAUSED:
+            rate.sleep()
+        elif PlanDispatcher.STATE == KREM_STATE.CANCELED:
+            rate.sleep()
+        elif PlanDispatcher.STATE == KREM_STATE.FINISHED:
+            PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+        elif PlanDispatcher.STATE == KREM_STATE.ERROR:
+            rate.sleep()
+        rospy.sleep(10)
 
 
 if __name__ == "__main__":

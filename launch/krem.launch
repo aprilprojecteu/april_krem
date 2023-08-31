@@ -3,11 +3,11 @@
     <!-- asin / osai / incm / pemu / slvr_epic1 / slvr_epic2 / slvr_epic3 / slvr_epic4 / slvr_epic5 / ines -->
     <arg name="use_case" default="uc6" doc="asin: uc1, osai: uc2, incm: uc3, pemu: uc4, slvr_epic1: uc5_1, slvr_epic2: uc5_2, slvr_epic3: uc5_3, slvr_epic4: uc5_4, slvr_epic5: uc5_5, ines: uc6"/>
     <arg name="temporal_actions" default="false" doc="enables parallel action execution"/>
-
     <!-- enable the monitor to check preconditions and effects of actions during execution -->
     <arg name="enable_monitor" default="false"/>
-    <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
+    <arg name="enable_plan_visualization" default="false"/>
 
+    <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
     <arg name="goal" default="" doc="possible goals: get_next_insole, preload_bag_bundle, load_bag, pick_insole, open_bag, release_set, seal_set"/>
 
     <!-- plan executor -->
@@ -16,9 +16,16 @@
         <param name="robot" value="$(arg robot_name)"/>
         <param name="enable_monitor" value="$(arg enable_monitor)"/>
         <param name="temporal_actions" value="$(arg temporal_actions)"/>
+        <param name="enable_plan_visualization" value="$(arg enable_plan_visualization)"/>
         <param name="goal" value="$(arg goal)"/>
     </node>
 
     <!-- Grasp Library -->
     <include file="$(find grasp_library)/launch/uc6.launch"/>
+
+    <!-- RQT Plan Visualization -->
+    <group if="$(arg enable_plan_visualization)">
+        <node name="plan_visualization" pkg="dot_graph_visualization" type="graph_visualization.py"/>
+    </group>
+
 </launch>
