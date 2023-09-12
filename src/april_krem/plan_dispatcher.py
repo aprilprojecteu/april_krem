@@ -140,6 +140,11 @@ class PlanDispatcher:
         if execution_status == "failed":
             # TODO: Replan or human intervention
             # if self._graph.nodes[succ_id]["action"]
+            wait_for_human_intervention_result = self.wait_for_human_intervention("Plan failed!")
+            if wait_for_human_intervention_result:
+                self.change_state(KREM_STATE.ACTIVE)
+            else:
+                self.change_state(KREM_STATE.ERROR)
             return False
         else:
             self.change_state(KREM_STATE.FINISHED)
@@ -181,7 +186,6 @@ class PlanDispatcher:
         result = self.run_symbolic_action(
             "wait_for_human_intervention", [display_message]
         )
-        PlanDispatcher.change_state(KREM_STATE.ACTIVE)
         return result
 
     @classmethod
