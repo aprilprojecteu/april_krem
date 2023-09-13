@@ -4,7 +4,7 @@
 import rospy
 
 # UP
-from unified_planning.plans.plan import PlanKind, Plan
+from unified_planning.plans.plan import PlanKind
 from unified_planning.model.metrics import (
     MinimizeMakespan,
     MinimizeSequentialPlanLength,
@@ -29,9 +29,7 @@ class AprilPlanDispatcher:
     ):
         self._domain = Domain(use_case=use_case, temporal=temporal_actions)
 
-        self._dispatcher = PlanDispatcher(
-            self._domain, monitoring
-        )
+        self._dispatcher = PlanDispatcher(self._domain, monitoring)
         self._plan = None
         self._plan_graph = None
         self._goals = []
@@ -116,7 +114,9 @@ class AprilPlanDispatcher:
 
         if goal_set:
             if self._temporal_actions:
-                plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
+                plan = self._domain.solve(
+                    planner_name="aries", metric=MinimizeMakespan()
+                )
                 if plan is not None:
                     rospy.loginfo("DispatcherROS: Found Plan!")
                     for start, action, duration in plan.timed_actions:
@@ -129,7 +129,9 @@ class AprilPlanDispatcher:
                 )
                 if plan is not None:
                     # Convert to sequential plan for visualization and execution
-                    plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
+                    plan = plan.convert_to(
+                        PlanKind.SEQUENTIAL_PLAN, self._domain.problem
+                    )
                     rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
         else:
             rospy.signal_shutdown("")

@@ -98,7 +98,7 @@ class Environment:
         self.bag_probably_open = False
         self.bag_open = False
 
-        self._perceived_objects = {}
+        self._perceived_objects.clear()
 
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
@@ -253,10 +253,10 @@ class Actions:
     def match_insole_bag(self, insole: Item, bag: Item):
         # arguments: [ID of insole, ID of bag]
         _, insole_id = self._env._get_item_type_and_id("insole")
-        _, bag_id = self._env._get_item_type_and_id("bag")
+        _, set_id = self._env._get_item_type_and_id("set")
         result = PlanDispatcher.run_symbolic_action(
             "match_insole_bag",
-            action_arguments=[f"{str(insole_id)}", f"{str(bag_id)}"],
+            action_arguments=[f"{str(insole_id)}", f"{str(set_id)}"],
             timeout=60.0,
         )
         if result:
@@ -313,7 +313,7 @@ class Actions:
         return result
 
     def perceive_bag(self, bag: Item):
-        self._env._clear_item_type("bag")
+        self._env._clear_item_type("set")
         result = PlanDispatcher.run_symbolic_action("perceive_bag", timeout=60.0)
         if result:
             self._env.item_at_location[bag] = Location.dispenser
@@ -349,4 +349,5 @@ class Actions:
             self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.set_released = False
             self._env.not_checked_types = True
+            self._env._perceived_objects.clear()
         return result

@@ -153,7 +153,9 @@ class PlanDispatcher:
                 elif failed_actions[0] == "perceive_bag":
                     message = "No Bag present."
                 elif failed_actions[0] == "match_insole_bag":
-                    rospy.loginfo("Insole and Bag type do not match, discarding Insole!")
+                    rospy.loginfo(
+                        "Insole and Bag type do not match, discarding Insole!"
+                    )
                     return False
                 elif failed_actions[0] == "pick_insole":
                     message = "Picking of Insole failed."
@@ -167,7 +169,9 @@ class PlanDispatcher:
                     message = "Releasing of Set failed."
                 elif failed_actions[0] == "seal_set":
                     message = "Sealing of Set failed."
-                wait_for_human_intervention_result = self.wait_for_human_intervention(message)
+                wait_for_human_intervention_result = self.wait_for_human_intervention(
+                    message
+                )
                 if wait_for_human_intervention_result:
                     self.change_state(KREM_STATE.ACTIVE)
                 else:

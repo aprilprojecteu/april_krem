@@ -113,7 +113,8 @@ class Domain:
                     )
                     self.problem.set_initial_value(fluent(*parameters), value)
 
-    def set_goal(self, goal: str = None) -> None:
+    def set_goal(self, goal: str = None) -> bool:
         self.problem = self.define_problem()
         self.set_initial_values()
-        self.specific_domain.set_state_and_goal(self.problem, goal)
+        goal_set = self.specific_domain.set_state_and_goal(self.problem, goal)
+        return goal_set
