@@ -4,7 +4,7 @@
 import rospy
 
 # UP
-from unified_planning.plans.plan import PlanKind
+from unified_planning.plans.plan import PlanKind, Plan
 from unified_planning.model.metrics import (
     MinimizeMakespan,
     MinimizeSequentialPlanLength,
@@ -30,7 +30,7 @@ class AprilPlanDispatcher:
         self._domain = Domain(use_case=use_case, temporal=temporal_actions)
 
         self._dispatcher = PlanDispatcher(
-            self._domain, self.plan_and_execute, monitoring
+            self._domain, monitoring
         )
         self._plan = None
         self._plan_graph = None
@@ -110,35 +110,47 @@ class AprilPlanDispatcher:
                 PlanDispatcher.change_state(KREM_STATE.CANCELED)
                 return
 
-    def plan_and_execute(self, goal=None) -> bool:
-        self._domain.set_goal(goal)
+    def plan(self, goal=None) -> bool:
+        plan = None
+        goal_set = self._domain.set_goal(goal)
 
-        if self._temporal_actions:
-            plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
-            if plan is not None:
-                rospy.loginfo("DispatcherROS: Found Plan!")
-                for start, action, duration in plan.timed_actions:
-                    rospy.loginfo(
-                        "%s: %s [%s]" % (float(start), action, float(duration))
-                    )
+        if goal_set:
+            if self._temporal_actions:
+                plan = self._domain.solve(planner_name="aries", metric=MinimizeMakespan())
+                if plan is not None:
+                    rospy.loginfo("DispatcherROS: Found Plan!")
+                    for start, action, duration in plan.timed_actions:
+                        rospy.loginfo(
+                            "%s: %s [%s]" % (float(start), action, float(duration))
+                        )
+            else:
+                plan = self._domain.solve(
+                    planner_name="aries", metric=MinimizeSequentialPlanLength()
+                )
+                if plan is not None:
+                    # Convert to sequential plan for visualization and execution
+                    plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
+                    rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
         else:
-            plan = self._domain.solve(
-                planner_name="aries", metric=MinimizeSequentialPlanLength()
-            )
-            if plan is not None:
-                # Convert to sequential plan for visualization and execution
-                plan = plan.convert_to(PlanKind.SEQUENTIAL_PLAN, self._domain.problem)
-                rospy.loginfo(f"DispatcherROS: Found Plan!\n{plan}")
+            rospy.signal_shutdown("")
 
         if plan is not None:
             self._plan = plan
             self._plan_graph = self._domain.specific_domain.get_executable_graph(plan)
+            return True
+        else:
+            rospy.logerr("Could not find plan!")
+            self._plan = None
+            self._plan_graph = None
+            return False
 
+    def execute(self) -> bool:
+        if self._plan is not None and self._plan_graph is not None:
             rospy.loginfo("DispatcherROS: Started execution of plan!")
             result = self._dispatcher.execute_plan(self._plan, self._plan_graph)
             return result
         else:
-            rospy.logerr("Could not find plan!")
+            rospy.logerr("No plan available to execute!")
             return False
 
 
@@ -160,7 +172,11 @@ def main():
         if PlanDispatcher.STATE == KREM_STATE.START:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.ACTIVE:
-            result = dispatcher.plan_and_execute(goal=goal)
+            plan_found = dispatcher.plan(goal=goal)
+            if not plan_found:
+                dispatcher._domain.specific_domain._env.reset_env()
+                continue
+            result = dispatcher.execute()
             rospy.loginfo(
                 "DispatcherROS: Dispatcher finished with result " + str(result)
             )

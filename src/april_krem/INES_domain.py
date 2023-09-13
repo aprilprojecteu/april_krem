@@ -736,7 +736,8 @@ class INESDomain(Bridge):
             self.seal_set.add_effect(self.bag_set_released(), False)
             self.seal_set.add_effect(self.holding(self.nothing), True)
 
-    def set_state_and_goal(self, problem, goal=None) -> None:
+    def set_state_and_goal(self, problem, goal=None) -> bool:
+        success = True
         if goal is None:
             subtask_get_insole = problem.task_network.add_subtask(
                 self.get_insole(self.conveyor_a, self.insole)
@@ -828,8 +829,11 @@ class INESDomain(Bridge):
         else:
             logerr(
                 (
-                    f"Task ({goal}) is unknown! Please use a task from this list: "
-                    "get_next_insole, preload_bag_bundle, load_bag, pick_insole, "
-                    "open_bag, release_set, seal_set"
+                    f"Task ({goal}) is unknown! Please use no goal for the complete scenario or a task from this list: "
+                    "get_next_insole, preload_bag_bundle, load_bag, pick_insole, pick_set, "
+                    "open_bag, insert, release_set, seal_set, perceive_insole, perceive_bag, "
+                    "perceive_set, reject_insole, match_insole_bag."
                 )
             )
+            success = False
+        return success
