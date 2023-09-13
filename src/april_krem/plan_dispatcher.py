@@ -40,14 +40,13 @@ class PlanDispatcher:
     )
     DOMAIN = None
 
-    def __init__(self, domain, replan_cb=None, enable_monitor: bool = False):
+    def __init__(self, domain, enable_monitor: bool = False):
         PlanDispatcher.DOMAIN = domain
         self._plan = None
         self._graph = None
         self._executor = None
         self._monitor = None
         self._plan_viz = None
-        self._replan_cb = replan_cb
         self._enable_monitor = enable_monitor
         self._node_id_to_action_map: Dict[int, ActionInstance] = {}
 
@@ -144,7 +143,7 @@ class PlanDispatcher:
                 if failed_actions[0] == "get_next_insole":
                     message = "Place Insole on Conveyor."
                 elif failed_actions[0] == "preload_bag_bundle":
-                    message = "Place Bag in Dispenser."
+                    message = "Place Bags in Dispenser."
                 elif failed_actions[0] == "perceive_insole":
                     message = "No Insole on Conveyor."
                 elif failed_actions[0] == "load_bag":
@@ -154,7 +153,8 @@ class PlanDispatcher:
                 elif failed_actions[0] == "perceive_bag":
                     message = "No Bag present."
                 elif failed_actions[0] == "match_insole_bag":
-                    message = "Wrong Insole type for Bag. Replace Insole."
+                    rospy.loginfo("Insole and Bag type do not match, discarding Insole!")
+                    return False
                 elif failed_actions[0] == "pick_insole":
                     message = "Picking of Insole failed."
                 elif failed_actions[0] == "insert":
