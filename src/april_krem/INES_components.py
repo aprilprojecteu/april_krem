@@ -222,7 +222,7 @@ class Actions:
     def reject_insole(self, insole: Item):
         # arguments: [ID of insole]
         _, id = self._env._get_item_type_and_id("insole")
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "reject_insole", action_arguments=[f"{str(id)}"], timeout=60.0
         )
         if result:
@@ -230,35 +230,35 @@ class Actions:
             self._env.insole_in_fov = False
             self._env.types_match = False
             self._env.not_checked_types = True
-        return result
+        return result, msg
 
     def get_next_insole(self, conveyor: Location):
-        result = PlanDispatcher.run_symbolic_action("get_next_insole", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("get_next_insole", timeout=6.0)
         if result:
             self._env.insole_in_fov = True
-        return result
+        return result, msg
 
     def preload_bag_bundle(self):
-        result = PlanDispatcher.run_symbolic_action("preload_bag_bundle")
-        return result
+        result, msg = PlanDispatcher.run_symbolic_action("preload_bag_bundle")
+        return result, msg
 
     def load_bag(self):
-        result = PlanDispatcher.run_symbolic_action("load_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("load_bag", timeout=60.0)
         if result:
             self._env.bag_probably_available = True
-        return result
+        return result, msg
 
     def open_bag(self):
-        result = PlanDispatcher.run_symbolic_action("open_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("open_bag", timeout=60.0)
         if result:
             self._env.bag_probably_open = True
-        return result
+        return result, msg
 
     def match_insole_bag(self, insole: Item, bag: Item):
         # arguments: [ID of insole, ID of bag]
         _, insole_id = self._env._get_item_type_and_id("insole")
         _, set_id = self._env._get_item_type_and_id("set")
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "match_insole_bag",
             action_arguments=[f"{str(insole_id)}", f"{str(set_id)}"],
             timeout=60.0,
@@ -270,37 +270,37 @@ class Actions:
             if PlanDispatcher.STATE != KREM_STATE.CANCELED:
                 self._env.types_match = False
                 self._env.not_checked_types = False
-        return result
+        return result, msg
 
     def pick_insole(self, insole: Item):
         class_name, id = self._env._get_item_type_and_id("insole")
         grasp_facts = self._grasp_library_srv("mia", class_name, "insertion", False)
         # arguments: [ID of insole]
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "pick_insole", [f"{str(id)}"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
             self._env.item_at_location[insole] = Location.in_hand
             self._env.item_at_location[Item.nothing] = Location.unknown
             self._env.insole_in_fov = False
-        return result
+        return result, msg
 
     def pick_set(self, set: Item):
         class_name, id = self._env._get_item_type_and_id("set")
         grasp_facts = self._grasp_library_srv("mia", class_name, "sealing", False)
         # arguments: [ID of set]
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "pick_set", [f"{str(id)}"], grasp_facts.grasp_strategies, 180.0
         )
         if result:
             self._env.item_at_location[set] = Location.in_hand
             self._env.item_at_location[Item.nothing] = Location.unknown
-        return result
+        return result, msg
 
     def insert(self, insole: Item, bag: Item):
         # arguments: [ID of bag (workaround: ID of set)​]
         _, id = self._env._get_item_type_and_id("set")
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "insert", [f"{str(id)}"], timeout=180.0
         )
         if result:
@@ -308,43 +308,43 @@ class Actions:
             self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.bag_open = False
             self._env.types_match = False
-        return result
+        return result, msg
 
     def perceive_insole(self, insole: Item):
         self._env._clear_item_type("insole")
-        result = PlanDispatcher.run_symbolic_action("perceive_insole", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("perceive_insole", timeout=60.0)
         if result:
             self._env.item_at_location[insole] = Location.conveyor_a
-        return result
+        return result, msg
 
     def perceive_bag(self, bag: Item):
         self._env._clear_item_type("set")
-        result = PlanDispatcher.run_symbolic_action("perceive_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("perceive_bag", timeout=60.0)
         if result:
             self._env.item_at_location[bag] = Location.dispenser
             self._env.bag_probably_available = False
             self._env.bag_probably_open = False
             self._env.bag_open = True
-        return result
+        return result, msg
 
     def perceive_set(self, insole: Item, bag: Item, set: Item):
         self._env._clear_item_type("set")
-        result = PlanDispatcher.run_symbolic_action("perceive_set", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("perceive_set", timeout=60.0)
         if result:
             self._env.item_at_location[set] = Location.dispenser
-        return result
+        return result, msg
 
     def release_set(self, set: Item):
-        result = PlanDispatcher.run_symbolic_action("release_set", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action("release_set", timeout=60.0)
         if result:
             self._env.set_released = True
 
-        return result
+        return result, msg
 
     def seal_set(self, set: Item):
         # arguments: [ID of set​]
         _, id = self._env._get_item_type_and_id("set")
-        result = PlanDispatcher.run_symbolic_action(
+        result, msg = PlanDispatcher.run_symbolic_action(
             "seal_set", [f"{str(id)}"], timeout=180.0
         )
         if result:
@@ -355,4 +355,4 @@ class Actions:
             self._env.set_released = False
             self._env.not_checked_types = True
             self._env._perceived_objects.clear()
-        return result
+        return result, msg

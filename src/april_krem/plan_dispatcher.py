@@ -3,7 +3,7 @@ import actionlib
 import networkx as nx
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict
+from typing import Dict, Tuple
 
 from unified_planning.plans import (
     Plan,
@@ -110,11 +110,11 @@ class PlanDispatcher:
                 for succ_id, result in results.items():
                     action_name = self._graph.nodes[succ_id]["action"]
                     if action_name not in ["start", "end"]:
-                        if not result:
-                            execution_status = "failed"
+                        if not result[0]:
+                            execution_status = result[1]
                             failed_actions.append(action_name)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
-                if execution_status == "failed":
+                if execution_status == "failed" or execution_status == "timeout":
                     break
 
             # check postconditions
@@ -139,8 +139,7 @@ class PlanDispatcher:
         if PlanDispatcher.STATE == KREM_STATE.CANCELED:
             return False
 
-        if execution_status == "failed":
-            # TODO: Replan or human intervention
+        if execution_status == "failed" or execution_status == "timeout":
             if failed_actions:
                 message = "UNKNOWN ERROR"
                 if failed_actions[0] == "get_next_insole":
@@ -148,13 +147,13 @@ class PlanDispatcher:
                 elif failed_actions[0] == "preload_bag_bundle":
                     message = "Place Bags in Dispenser."
                 elif failed_actions[0] == "perceive_insole":
-                    message = "No Insole on Conveyor."
+                    message = "No Insole on Conveyor detected."
                 elif failed_actions[0] == "load_bag":
-                    message = "Load Bag."
+                    message = "Place Bags in Dispenser."
                 elif failed_actions[0] == "open_bag":
                     message = "Bag not opened correctly."
                 elif failed_actions[0] == "perceive_bag":
-                    message = "No Bag present."
+                    message = "No Bag detected."
                 elif failed_actions[0] == "match_insole_bag":
                     rospy.loginfo(
                         "Insole and Bag type do not match, discarding Insole!"
@@ -217,7 +216,7 @@ class PlanDispatcher:
 
     def wait_for_human_intervention(self, display_message: str = ""):
         PlanDispatcher.change_state(KREM_STATE.WAITING)
-        result = self.run_symbolic_action(
+        result, _ = self.run_symbolic_action(
             "wait_for_human_intervention", [display_message]
         )
         return result
@@ -278,7 +277,7 @@ class PlanDispatcher:
     @classmethod
     def run_symbolic_action(
         cls, action_name: str, action_arguments=[], grasp_facts=[], timeout=0.0
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         rate = rospy.Rate(10)
 
         run_symbolic_action_goal_msg = RunSymbolicActionGoal(
@@ -351,18 +350,18 @@ class PlanDispatcher:
                         rospy.logerr(
                             f"\033[91mDispatcherROS: Action {action_name} failed 3 times!\033[0m"
                         )
-                        return False
+                        return (False, "failed")
             # Check if action timed out, cancel action, return failure
             if timeout > 0.0 and rospy.get_rostime().to_sec() - start_time > timeout:
                 rospy.logerr(
                     f"{action_name} timed out after {initial_timeout} seconds!"
                 )
                 cls.HICEM_ACTION_SERVER.cancel_all_goals()
-                return False
+                return (False, "timeout")
 
             rate.sleep()
 
-        return _action_result if _action_result is not None else False
+        return (_action_result, "success") if _action_result is not None and _action_result else (False, "failed")
 
 
 class ParallelPlanExecutor:
@@ -382,8 +381,8 @@ class ParallelPlanExecutor:
             ]
 
         for future in as_completed(futures):
-            id, result = future.result()
-            results[id] = result
+            id, result, msg = future.result()
+            results[id] = (result, msg)
 
         return results
 
@@ -392,9 +391,9 @@ class ParallelPlanExecutor:
         # FIXME: Duplicate execution of actions
         parameters = action[1]["parameters"]
         executor = action[1]["context"][action[1]["action"]]
-        result = executor(**parameters)
+        result, msg = executor(**parameters)
 
-        return action[0], result
+        return action[0], result, msg
 
 
 class SequentialPlanExecutor:
@@ -408,6 +407,6 @@ class SequentialPlanExecutor:
         executor = node["context"][node["action"]]
 
         # Execute action
-        result = executor(**parameters)
+        result, msg = executor(**parameters)
 
-        return {node_ids[0]: result}
+        return {node_ids[0]: (result, msg)}
