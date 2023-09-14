@@ -136,6 +136,9 @@ class PlanDispatcher:
                 self._plan_viz.succeed(self._node_id_to_action_map[succ_id])
                 executed_action_ids.append(succ_id)
 
+        if PlanDispatcher.STATE == KREM_STATE.CANCELED:
+            return False
+
         if execution_status == "failed":
             # TODO: Replan or human intervention
             if failed_actions:

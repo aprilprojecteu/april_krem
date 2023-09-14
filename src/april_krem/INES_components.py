@@ -15,7 +15,7 @@ from april_msgs.srv import (
     ObjectsEstimatedPosesSrvResponse,
 )
 
-from april_krem.plan_dispatcher import PlanDispatcher
+from april_krem.plan_dispatcher import PlanDispatcher, KREM_STATE
 
 
 class Item(Enum):
@@ -70,17 +70,21 @@ class Environment:
 
     def __str__(self) -> str:
         item_at_location_str = "\n".join(
-            [f'"{k.value}" at "{v.value}"' for k, v in self.item_at_location.items()]
+            [f'- "{k.value}" at "{v.value}"' for k, v in self.item_at_location.items()]
+        )
+        perceived_objects_str = "\n".join(
+            [f'- "{k}"' for k in self._perceived_objects.keys()]
         )
         return (
-            f"{item_at_location_str}\n"
+            f"Objects at location: \n{item_at_location_str}\n"
             f"Types match: {self.types_match}\n"
-            f"Item types not checked: {self.not_checked_item_types}\n"
+            f"Item types not checked: {self.not_checked_types}\n"
             f"Insole in FOV: {self.insole_in_fov}\n"
             f"Set released: {self.set_released}\n"
             f"Bag probably available: {self.bag_probably_available}\n"
             f"Bag probably open: {self.bag_probably_open}\n"
-            f"Bag open: {self.bag_open}"
+            f"Bag open: {self.bag_open}\n"
+            f"Perceived objects:\n {perceived_objects_str}"
         )
 
     def reset_env(self) -> None:
@@ -263,8 +267,9 @@ class Actions:
             self._env.types_match = True
             self._env.not_checked_types = False
         else:
-            self._env.types_match = False
-            self._env.not_checked_types = False
+            if PlanDispatcher.STATE != KREM_STATE.CANCELED:
+                self._env.types_match = False
+                self._env.not_checked_types = False
         return result
 
     def pick_insole(self, insole: Item):
