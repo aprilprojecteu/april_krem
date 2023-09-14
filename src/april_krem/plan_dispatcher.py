@@ -361,7 +361,11 @@ class PlanDispatcher:
 
             rate.sleep()
 
-        return (_action_result, "success") if _action_result is not None and _action_result else (False, "failed")
+        return (
+            (_action_result, "success")
+            if _action_result is not None and _action_result
+            else (False, "failed")
+        )
 
 
 class ParallelPlanExecutor:

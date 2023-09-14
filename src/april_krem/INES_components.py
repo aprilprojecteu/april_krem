@@ -219,11 +219,20 @@ class Actions:
         )
         rospy.loginfo("Grasp Library Service found!")
 
+        self._non_robot_actions_timeout = rospy.get_param(
+            "~non_robot_actions_timeout", default="20"
+        )
+        self._robot_actions_timeout = rospy.get_param(
+            "~robot_actions_timeout", default="120"
+        )
+
     def reject_insole(self, insole: Item):
         # arguments: [ID of insole]
         _, id = self._env._get_item_type_and_id("insole")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "reject_insole", action_arguments=[f"{str(id)}"], timeout=60.0
+            "reject_insole",
+            action_arguments=[f"{str(id)}"],
+            timeout=self._non_robot_actions_timeout,
         )
         if result:
             self._env.item_at_location[insole] = Location.unknown
@@ -233,7 +242,9 @@ class Actions:
         return result, msg
 
     def get_next_insole(self, conveyor: Location):
-        result, msg = PlanDispatcher.run_symbolic_action("get_next_insole", timeout=6.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "get_next_insole", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.insole_in_fov = True
         return result, msg
@@ -243,13 +254,17 @@ class Actions:
         return result, msg
 
     def load_bag(self):
-        result, msg = PlanDispatcher.run_symbolic_action("load_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "load_bag", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.bag_probably_available = True
         return result, msg
 
     def open_bag(self):
-        result, msg = PlanDispatcher.run_symbolic_action("open_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "open_bag", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.bag_probably_open = True
         return result, msg
@@ -261,7 +276,7 @@ class Actions:
         result, msg = PlanDispatcher.run_symbolic_action(
             "match_insole_bag",
             action_arguments=[f"{str(insole_id)}", f"{str(set_id)}"],
-            timeout=60.0,
+            timeout=self._non_robot_actions_timeout,
         )
         if result:
             self._env.types_match = True
@@ -277,7 +292,10 @@ class Actions:
         grasp_facts = self._grasp_library_srv("mia", class_name, "insertion", False)
         # arguments: [ID of insole]
         result, msg = PlanDispatcher.run_symbolic_action(
-            "pick_insole", [f"{str(id)}"], grasp_facts.grasp_strategies, 180.0
+            "pick_insole",
+            [f"{str(id)}"],
+            grasp_facts.grasp_strategies,
+            self._robot_actions_timeout,
         )
         if result:
             self._env.item_at_location[insole] = Location.in_hand
@@ -290,7 +308,10 @@ class Actions:
         grasp_facts = self._grasp_library_srv("mia", class_name, "sealing", False)
         # arguments: [ID of set]
         result, msg = PlanDispatcher.run_symbolic_action(
-            "pick_set", [f"{str(id)}"], grasp_facts.grasp_strategies, 180.0
+            "pick_set",
+            [f"{str(id)}"],
+            grasp_facts.grasp_strategies,
+            self._robot_actions_timeout,
         )
         if result:
             self._env.item_at_location[set] = Location.in_hand
@@ -301,7 +322,7 @@ class Actions:
         # arguments: [ID of bag (workaround: ID of set)​]
         _, id = self._env._get_item_type_and_id("set")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "insert", [f"{str(id)}"], timeout=180.0
+            "insert", [f"{str(id)}"], timeout=self._robot_actions_timeout
         )
         if result:
             self._env.item_at_location[insole] = Location.in_bag
@@ -312,14 +333,18 @@ class Actions:
 
     def perceive_insole(self, insole: Item):
         self._env._clear_item_type("insole")
-        result, msg = PlanDispatcher.run_symbolic_action("perceive_insole", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "perceive_insole", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.item_at_location[insole] = Location.conveyor_a
         return result, msg
 
     def perceive_bag(self, bag: Item):
         self._env._clear_item_type("set")
-        result, msg = PlanDispatcher.run_symbolic_action("perceive_bag", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "perceive_bag", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.item_at_location[bag] = Location.dispenser
             self._env.bag_probably_available = False
@@ -329,13 +354,17 @@ class Actions:
 
     def perceive_set(self, insole: Item, bag: Item, set: Item):
         self._env._clear_item_type("set")
-        result, msg = PlanDispatcher.run_symbolic_action("perceive_set", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "perceive_set", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.item_at_location[set] = Location.dispenser
         return result, msg
 
     def release_set(self, set: Item):
-        result, msg = PlanDispatcher.run_symbolic_action("release_set", timeout=60.0)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "release_set", timeout=self._non_robot_actions_timeout
+        )
         if result:
             self._env.set_released = True
 
@@ -345,7 +374,7 @@ class Actions:
         # arguments: [ID of set​]
         _, id = self._env._get_item_type_and_id("set")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "seal_set", [f"{str(id)}"], timeout=180.0
+            "seal_set", [f"{str(id)}"], timeout=self._robot_actions_timeout
         )
         if result:
             self._env.item_at_location[Item.insole] = Location.unknown

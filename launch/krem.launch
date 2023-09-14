@@ -10,6 +10,9 @@
     <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
     <arg name="goal" default="" doc="possible goals: get_next_insole, preload_bag_bundle, load_bag, pick_insole, open_bag, release_set, seal_set"/>
 
+    <arg name="non_robot_actions_timeout" default="20" doc="Specify a timeout in seconds for all actions, which do not use the robotic arm."/>
+    <arg name="robot_actions_timeout" default="120" doc="Specify a timeout in seconds for all actions, which include the robotic arm, e.g. pick, insert, place."/>
+
     <!-- plan executor -->
     <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
         <param name="use_case" value="$(arg use_case)"/>
@@ -18,6 +21,8 @@
         <param name="temporal_actions" value="$(arg temporal_actions)"/>
         <param name="enable_plan_visualization" value="$(arg enable_plan_visualization)"/>
         <param name="goal" value="$(arg goal)"/>
+        <param name="non_robot_actions_timeout" value="$(arg non_robot_actions_timeout)"/>
+        <param name="robot_actions_timeout" value="$(arg robot_actions_timeout)"/>
     </node>
 
     <!-- Grasp Library -->
