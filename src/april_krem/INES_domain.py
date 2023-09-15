@@ -534,6 +534,7 @@ class INESDomain(Bridge):
             self.pick_set.add_effect(EndTiming(), self.holding(self.nothing), False)
             self.pick_set.add_effect(EndTiming(), self.holding(s), True)
             self.pick_set.add_effect(EndTiming(), self.item_pose_is_known(s), False)
+            self.pick_set.add_effect(EndTiming(), self.bag_is_probably_available, False)
 
             self.insert, [i, b] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert, duration=30
@@ -567,9 +568,6 @@ class INESDomain(Bridge):
             )
             self.perceive_bag.add_condition(
                 StartTiming(), self.bag_is_probably_available()
-            )
-            self.perceive_bag.add_effect(
-                EndTiming(), self.bag_is_probably_available(), False
             )
             self.perceive_bag.add_effect(
                 EndTiming(), self.bag_is_probably_open(), False
@@ -678,6 +676,7 @@ class INESDomain(Bridge):
             self.pick_set.add_effect(self.holding(self.nothing), False)
             self.pick_set.add_effect(self.holding(s), True)
             self.pick_set.add_effect(self.item_pose_is_known(s), False)
+            self.pick_set.add_effect(self.bag_is_probably_available, False)
 
             self.insert, [i, b] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert
@@ -704,7 +703,6 @@ class INESDomain(Bridge):
                 "perceive_bag", bag=Item, _callable=actions.perceive_bag
             )
             self.perceive_bag.add_precondition(self.bag_is_probably_available())
-            self.perceive_bag.add_effect(self.bag_is_probably_available(), False)
             self.perceive_bag.add_effect(self.bag_is_probably_open(), False)
             self.perceive_bag.add_effect(self.item_pose_is_known(b), True)
             self.perceive_bag.add_effect(self.bag_is_open(), True)
