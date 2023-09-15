@@ -54,9 +54,7 @@ class Environment:
         }
         self.types_match = False
         self.not_checked_types = True
-        self.insole_in_fov = False
         self.set_released = False
-        self.bag_probably_available = False
         self.bag_probably_open = False
         self.bag_open = False
 
@@ -79,9 +77,7 @@ class Environment:
             f"Objects at location: \n{item_at_location_str}\n"
             f"Types match: {self.types_match}\n"
             f"Item types not checked: {self.not_checked_types}\n"
-            f"Insole in FOV: {self.insole_in_fov}\n"
             f"Set released: {self.set_released}\n"
-            f"Bag probably available: {self.bag_probably_available}\n"
             f"Bag probably open: {self.bag_probably_open}\n"
             f"Bag open: {self.bag_open}\n"
             f"Perceived objects:\n {perceived_objects_str}"
@@ -96,9 +92,7 @@ class Environment:
         }
         self.types_match = False
         self.not_checked_types = True
-        self.insole_in_fov = False
         self.set_released = False
-        self.bag_probably_available = False
         self.bag_probably_open = False
         self.bag_open = False
 
@@ -189,13 +183,25 @@ class Environment:
         return self.not_checked_types
 
     def item_in_fov(self) -> bool:
-        return self.insole_in_fov
+        facts = self._fact_generator.generate_facts_with_name("item_in_fov")
+        if facts[0].values[0]:
+            return True
+        elif not facts[0].values[0]:
+            return False
+        else:
+            return False
 
     def bag_set_released(self) -> bool:
         return self.set_released
 
     def bag_is_probably_available(self) -> bool:
-        return self.bag_probably_available
+        facts = self._fact_generator.generate_facts_with_name("bag_is_probably_available")
+        if facts[0].values[0]:
+            return True
+        elif not facts[0].values[0]:
+            return False
+        else:
+            return False
 
     def bag_is_probably_open(self) -> bool:
         return self.bag_probably_open
@@ -236,7 +242,6 @@ class Actions:
         )
         if result:
             self._env.item_at_location[insole] = Location.unknown
-            self._env.insole_in_fov = False
             self._env.types_match = False
             self._env.not_checked_types = True
         return result, msg
@@ -245,8 +250,6 @@ class Actions:
         result, msg = PlanDispatcher.run_symbolic_action(
             "get_next_insole", timeout=self._non_robot_actions_timeout
         )
-        if result:
-            self._env.insole_in_fov = True
         return result, msg
 
     def preload_bag_bundle(self):
@@ -257,8 +260,7 @@ class Actions:
         result, msg = PlanDispatcher.run_symbolic_action(
             "load_bag", timeout=self._non_robot_actions_timeout
         )
-        if result:
-            self._env.bag_probably_available = True
+
         return result, msg
 
     def open_bag(self):
@@ -300,7 +302,6 @@ class Actions:
         if result:
             self._env.item_at_location[insole] = Location.in_hand
             self._env.item_at_location[Item.nothing] = Location.unknown
-            self._env.insole_in_fov = False
         return result, msg
 
     def pick_set(self, set: Item):
@@ -347,7 +348,6 @@ class Actions:
         )
         if result:
             self._env.item_at_location[bag] = Location.dispenser
-            self._env.bag_probably_available = False
             self._env.bag_probably_open = False
             self._env.bag_open = True
         return result, msg
