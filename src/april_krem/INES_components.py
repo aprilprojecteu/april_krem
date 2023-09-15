@@ -117,11 +117,15 @@ class Environment:
 
     def _get_item_type_and_id(self, item: str) -> Tuple[str, int]:
         # TODO return closest item
+        smallest_class = None
+        smallest_id = None
         for k in self._perceived_objects.keys():
             if item in k:
                 class_name, id = k.rsplit("_", 1)
-                return class_name, id
-        return None, None
+                if smallest_id is None or int(id) < smallest_id:
+                    smallest_id = int(id)
+                    smallest_class = class_name
+        return smallest_class, smallest_id
 
     def _clear_item_type(self, item: str) -> None:
         for k in list(self._perceived_objects.keys()):
@@ -291,6 +295,7 @@ class Actions:
 
     def pick_insole(self, insole: Item):
         class_name, id = self._env._get_item_type_and_id("insole")
+        rospy.loginfo(f"Picking {class_name} with ID: {str(id)}")
         grasp_facts = self._grasp_library_srv("mia", class_name, "insertion", False)
         # arguments: [ID of insole]
         result, msg = PlanDispatcher.run_symbolic_action(
