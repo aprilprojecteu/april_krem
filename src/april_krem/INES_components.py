@@ -199,7 +199,9 @@ class Environment:
         return self.set_released
 
     def bag_is_probably_available(self) -> bool:
-        facts = self._fact_generator.generate_facts_with_name("bag_is_probably_available")
+        facts = self._fact_generator.generate_facts_with_name(
+            "bag_is_probably_available"
+        )
         if facts[0].values[0]:
             return True
         elif not facts[0].values[0]:

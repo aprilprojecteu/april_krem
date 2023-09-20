@@ -37,9 +37,12 @@ class AprilPlanDispatcher:
 
         self._timeout = 60.0
 
-        # Gesture Topic
-        self._gestures = rospy.Subscriber(
-            "/pem/human/gesture_results", PersonGesturesList, self._gesture_cb
+        # Gesture Topics
+        self._gestures_camera1 = rospy.Subscriber(
+            "/pem/camera1/human/gesture_results", PersonGesturesList, self._gesture_cb
+        )
+        self._gestures_camera2 = rospy.Subscriber(
+            "/pem/camera2/human/gesture_results", PersonGesturesList, self._gesture_cb
         )
 
         # Gesture Backup Buttons Topic
@@ -117,7 +120,7 @@ class AprilPlanDispatcher:
                 plan = self._domain.solve(
                     planner_name="aries", metric=MinimizeMakespan()
                 )
-                if plan is not None:
+                if plan is not None and plan:
                     rospy.loginfo("DispatcherROS: Found Plan!")
                     for start, action, duration in plan.timed_actions:
                         rospy.loginfo(
@@ -127,7 +130,7 @@ class AprilPlanDispatcher:
                 plan = self._domain.solve(
                     planner_name="aries", metric=MinimizeSequentialPlanLength()
                 )
-                if plan is not None:
+                if plan is not None and plan:
                     # Convert to sequential plan for visualization and execution
                     plan = plan.convert_to(
                         PlanKind.SEQUENTIAL_PLAN, self._domain.problem
@@ -136,7 +139,7 @@ class AprilPlanDispatcher:
         else:
             rospy.signal_shutdown("")
 
-        if plan is not None:
+        if plan is not None and plan:
             self._plan = plan
             self._plan_graph = self._domain.specific_domain.get_executable_graph(plan)
             return True
@@ -188,7 +191,7 @@ def main():
             pass
         elif PlanDispatcher.STATE == KREM_STATE.FINISHED:
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-            rospy.sleep(10)
+            rospy.sleep(3)
         elif PlanDispatcher.STATE == KREM_STATE.ERROR:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.WAITING:

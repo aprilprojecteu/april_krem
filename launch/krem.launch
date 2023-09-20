@@ -26,7 +26,7 @@
     </node>
 
     <!-- Grasp Library -->
-    <include file="$(find grasp_library)/launch/uc6.launch"/>
+    <include file="$(find grasp_library)/launch/$(arg use_case).launch"/>
 
     <!-- RQT Plan Visualization -->
     <group if="$(arg enable_plan_visualization)">

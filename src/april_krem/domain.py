@@ -17,7 +17,9 @@ class Domain:
         self._use_case = use_case
 
         if use_case == "uc1":
-            pass
+            from april_krem.ASIN_domain import ASINDomain
+
+            self.specific_domain = ASINDomain(temporal)
         elif use_case == "uc2":
             pass
         elif use_case == "uc3":
@@ -117,4 +119,8 @@ class Domain:
         self.problem = self.define_problem()
         self.set_initial_values()
         goal_set = self.specific_domain.set_state_and_goal(self.problem, goal)
+        # s = ""
+        # for k, v in self.problem.explicit_initial_values.items():
+        #     s += f"  {str(k)} := {str(v)}\n"
+        # print(s)
         return goal_set

@@ -140,6 +140,7 @@ class PlanDispatcher:
             return False
 
         if execution_status == "failed" or execution_status == "timeout":
+            # TODO CONFIG FILE PER USE CASE
             if failed_actions:
                 message = "UNKNOWN ERROR"
                 if failed_actions[0] == "get_next_insole":
