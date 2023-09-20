@@ -1,0 +1,19 @@
+---
+get_next_chicken_part:
+  replanning: false
+  message: Place Chicken on Conveyor.
+estimate_part_shelf_life:
+  replanning: false
+  message: Shelf Life not available.
+perceive_chicken_part:
+  replanning: false
+  message: No Chicken on Conveyor detected.
+pick_chicken_part:
+  replanning: false
+  message: Picking of Chicken failed.
+perceive_trays:
+  replanning: false
+  message: No Trays detected.
+insert_part_in_container:
+  replanning: false
+  message: Not able to place Chicken in Tray.

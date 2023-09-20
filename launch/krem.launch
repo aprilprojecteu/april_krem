@@ -1,36 +1,40 @@
 <?xml version="1.0"?>
 <launch>
-    <!-- asin / osai / incm / pemu / slvr_epic1 / slvr_epic2 / slvr_epic3 / slvr_epic4 / slvr_epic5 / ines -->
-    <arg name="use_case" default="uc6" doc="asin: uc1, osai: uc2, incm: uc3, pemu: uc4, slvr_epic1: uc5_1, slvr_epic2: uc5_2, slvr_epic3: uc5_3, slvr_epic4: uc5_4, slvr_epic5: uc5_5, ines: uc6"/>
-    <arg name="temporal_actions" default="false" doc="enables parallel action execution"/>
-    <!-- enable the monitor to check preconditions and effects of actions during execution -->
-    <arg name="enable_monitor" default="false"/>
-    <arg name="enable_plan_visualization" default="false"/>
+    <group ns="krem">
+        <!-- asin / osai / incm / pemu / slvr_epic1 / slvr_epic2 / slvr_epic3 / slvr_epic4 / slvr_epic5 / ines -->
+        <arg name="use_case" default="uc6" doc="asin: uc1, osai: uc2, incm: uc3, pemu: uc4, slvr_epic1: uc5_1, slvr_epic2: uc5_2, slvr_epic3: uc5_3, slvr_epic4: uc5_4, slvr_epic5: uc5_5, ines: uc6"/>
+        <arg name="temporal_actions" default="false" doc="enables parallel action execution"/>
+        <!-- enable the monitor to check preconditions and effects of actions during execution -->
+        <arg name="enable_monitor" default="false"/>
+        <arg name="enable_plan_visualization" default="false"/>
 
-    <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
-    <arg name="goal" default="" doc="possible goals: get_next_insole, preload_bag_bundle, load_bag, pick_insole, open_bag, release_set, seal_set"/>
+        <arg name="robot_name" default="$(optenv ROBOT mia_hand_on_ur10e)" />
+        <arg name="goal" default="" doc="possible goals: get_next_insole, preload_bag_bundle, load_bag, pick_insole, open_bag, release_set, seal_set"/>
 
-    <arg name="non_robot_actions_timeout" default="20" doc="Specify a timeout in seconds for all actions, which do not use the robotic arm."/>
-    <arg name="robot_actions_timeout" default="120" doc="Specify a timeout in seconds for all actions, which include the robotic arm, e.g. pick, insert, place."/>
+        <arg name="non_robot_actions_timeout" default="20" doc="Specify a timeout in seconds for all actions, which do not use the robotic arm."/>
+        <arg name="robot_actions_timeout" default="120" doc="Specify a timeout in seconds for all actions, which include the robotic arm, e.g. pick, insert, place."/>
+        <arg name="ACB_display_text" default="$(find april_krem)/config/$(arg use_case)_ACB_display_text.yaml"/>
 
-    <!-- plan executor -->
-    <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
-        <param name="use_case" value="$(arg use_case)"/>
-        <param name="robot" value="$(arg robot_name)"/>
-        <param name="enable_monitor" value="$(arg enable_monitor)"/>
-        <param name="temporal_actions" value="$(arg temporal_actions)"/>
-        <param name="enable_plan_visualization" value="$(arg enable_plan_visualization)"/>
-        <param name="goal" value="$(arg goal)"/>
-        <param name="non_robot_actions_timeout" value="$(arg non_robot_actions_timeout)"/>
-        <param name="robot_actions_timeout" value="$(arg robot_actions_timeout)"/>
-    </node>
+        <!-- plan executor -->
+        <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
+            <param name="use_case" value="$(arg use_case)"/>
+            <param name="robot" value="$(arg robot_name)"/>
+            <param name="enable_monitor" value="$(arg enable_monitor)"/>
+            <param name="temporal_actions" value="$(arg temporal_actions)"/>
+            <param name="enable_plan_visualization" value="$(arg enable_plan_visualization)"/>
+            <param name="goal" value="$(arg goal)"/>
+            <param name="non_robot_actions_timeout" value="$(arg non_robot_actions_timeout)"/>
+            <param name="robot_actions_timeout" value="$(arg robot_actions_timeout)"/>
+            <rosparam command="load" param="ACB_display_text" file="$(arg ACB_display_text)"/>
+        </node>
 
+
+
+        <!-- RQT Plan Visualization -->
+        <group if="$(arg enable_plan_visualization)">
+            <node name="plan_visualization" pkg="dot_graph_visualization" type="graph_visualization.py"/>
+        </group>
+    </group>
     <!-- Grasp Library -->
     <include file="$(find grasp_library)/launch/$(arg use_case).launch"/>
-
-    <!-- RQT Plan Visualization -->
-    <group if="$(arg enable_plan_visualization)">
-        <node name="plan_visualization" pkg="dot_graph_visualization" type="graph_visualization.py"/>
-    </group>
-
 </launch>

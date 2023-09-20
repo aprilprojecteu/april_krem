@@ -1,0 +1,40 @@
+---
+get_next_insole:
+  replanning: false
+  message: Place Insole on Conveyor.
+preload_bag_bundle:
+  replanning: false
+  message: Place Bags in Dispenser.
+perceive_insole:
+  replanning: false
+  message: No Insole on Conveyor detected.
+load_bag:
+  replanning: false
+  message: Place Bags in Dispenser.
+open_bag:
+  replanning: false
+  message: Bag not opened correctly.
+perceive_bag:
+  replanning: false
+  message: No Bag detected.
+match_insole_bag:
+  replanning: true
+  message: Insole and Bag type do not match, discarding Insole!
+pick_insole:
+  replanning: false
+  message: Picking of Insole failed.
+insert:
+  replanning: false
+  message: Insertion of Insole into Bag failed.
+perceive_set:
+  replanning: false
+  message: No Set detected.
+pick_set:
+  replanning: false
+  message: Picking of Set failed.
+release_set:
+  replanning: false
+  message: Releasing of Set failed.
+seal_set:
+  replanning: false
+  message: Sealing of Set failed.

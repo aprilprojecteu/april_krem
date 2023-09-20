@@ -55,6 +55,8 @@ class PlanDispatcher:
         PlanDispatcher.HICEM_ACTION_SERVER.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
+        self._acb_display_text = rospy.get_param("~ACB_display_text", default="")
+
     def execute_plan(self, plan: Plan, graph: nx.DiGraph) -> bool:
         """Execute the plan."""
 
@@ -140,45 +142,23 @@ class PlanDispatcher:
             return False
 
         if execution_status == "failed" or execution_status == "timeout":
-            # TODO CONFIG FILE PER USE CASE
             if failed_actions:
-                message = "UNKNOWN ERROR"
-                if failed_actions[0] == "get_next_insole":
-                    message = "Place Insole on Conveyor."
-                elif failed_actions[0] == "preload_bag_bundle":
-                    message = "Place Bags in Dispenser."
-                elif failed_actions[0] == "perceive_insole":
-                    message = "No Insole on Conveyor detected."
-                elif failed_actions[0] == "load_bag":
-                    message = "Place Bags in Dispenser."
-                elif failed_actions[0] == "open_bag":
-                    message = "Bag not opened correctly."
-                elif failed_actions[0] == "perceive_bag":
-                    message = "No Bag detected."
-                elif failed_actions[0] == "match_insole_bag":
-                    rospy.loginfo(
-                        "Insole and Bag type do not match, discarding Insole!"
-                    )
-                    return False
-                elif failed_actions[0] == "pick_insole":
-                    message = "Picking of Insole failed."
-                elif failed_actions[0] == "insert":
-                    message = "Insertion of Insole into Bag failed."
-                elif failed_actions[0] == "perceive_set":
-                    message = "No Set detected."
-                elif failed_actions[0] == "pick_set":
-                    message = "Picking of Set failed."
-                elif failed_actions[0] == "release_set":
-                    message = "Releasing of Set failed."
-                elif failed_actions[0] == "seal_set":
-                    message = "Sealing of Set failed."
-                wait_for_human_intervention_result = self.wait_for_human_intervention(
-                    message
+                replanning = self._acb_display_text.get(failed_actions[0], {}).get(
+                    "replanning", False
                 )
-                if wait_for_human_intervention_result:
-                    self.change_state(KREM_STATE.ACTIVE)
+                message = self._acb_display_text.get(failed_actions[0], {}).get(
+                    "message", "UNKNOWN ERROR"
+                )
+                if replanning:
+                    rospy.loginfo(message)
                 else:
-                    self.change_state(KREM_STATE.ERROR)
+                    wait_for_human_intervention_result = (
+                        self.wait_for_human_intervention(message)
+                    )
+                    if wait_for_human_intervention_result:
+                        self.change_state(KREM_STATE.ACTIVE)
+                    else:
+                        self.change_state(KREM_STATE.ERROR)
             return False
         else:
             self.change_state(KREM_STATE.FINISHED)
