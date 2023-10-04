@@ -8,6 +8,9 @@ from april_msgs.srv import (
     ObjectsEstimatedPosesSrv,
     ObjectsEstimatedPosesSrvRequest,
     ObjectsEstimatedPosesSrvResponse,
+    ShelfLife,
+    ShelfLifeRequest,
+    ShelfLifeResponse
 )
 
 from april_krem.plan_dispatcher import PlanDispatcher
@@ -21,11 +24,11 @@ class Item(Enum):
 
 
 class Tray(Enum):
-    unknown_tray = "unknown_tray"
-    high_tray = "high_tray"
-    med_tray = "med_tray"
-    low_tray = "low_tray"
-    discard_tray = "discard_tray"
+    unknown_tray = 0
+    low_tray = 1
+    med_tray = 2
+    high_tray = 3
+    discard_tray = 4
 
 class ArmPose(Enum):
     unknown_pose = "unknown_pose"
@@ -66,7 +69,7 @@ class Environment:
         # Chicken shelf life service
         rospy.Service(
             "/hicem/sfg/asin/hsi_pc/shelf_life",
-            ObjectsEstimatedPosesSrv,  # TODO Correct service message
+            ShelfLife,
             self._chicken_shelf_life_srv,
         )
 
@@ -88,7 +91,7 @@ class Environment:
             f"Chicken type: {self.chicken_type.value}\n"
             f"Holding: {self.holding_item.value}\n"
             f"Chicken in FOV: {self.chicken_in_fov}\n"
-            f"Tray to place: {self.tray_place.value}\n"
+            f"Tray to place: {self.tray_place.name} with ID {self.tray_place.value}\n"
             f"Trays available: \n{tray_available_str}\n"
             f"Perceived trays: {self.perceived_trays}\n"
             f"Arm Pose: {self.arm_pose.value}\n"
@@ -133,8 +136,19 @@ class Environment:
         else:
             return True
 
-    def _chicken_shelf_life_srv(self, request):  # TODO
-        pass
+    def _chicken_shelf_life_srv(self, request: ShelfLifeRequest) -> ShelfLifeResponse:
+        success = True
+        if request.shelf_life < 3:
+            self.tray_place = Tray.high_tray
+        elif 3 <= request.shelf_life < 5:
+            self.tray_place = Tray.med_tray
+        elif 5 <= request.shelf_life < 7:
+            self.tray_place = Tray.low_tray
+        elif 7 <= request.shelf_life:
+            self.tray_place = Tray.discard_tray
+        else:
+            success = False
+        return ShelfLifeResponse(confirm=success)
 
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
@@ -245,8 +259,8 @@ class Actions:
     def estimate_part_shelf_life(self):
         result, msg = PlanDispatcher.run_symbolic_action("estimate_part_shelf_life")
         if result:
-            # TODO get shelf life and assign to tray
-            self._env.tray_place = Tray.low_tray
+            #HACK HARDCODED TRAY
+            self._env.tray_place = Tray.med_tray
         return result, msg
 
     def perceive_chicken_part(self):
@@ -295,16 +309,17 @@ class Actions:
             return False
 
     def perceive_trays(self):
-        self._env._clear_item_type("tray")
+        #self._env._clear_item_type("tray")
         result, msg = PlanDispatcher.run_symbolic_action(
             "perceive_trays", timeout=self._non_robot_actions_timeout
         )
-        # TODO process observation of trays and assign if there
         if result:
             for tray in [Tray.low_tray, Tray.med_tray, Tray.high_tray]:
-                class_name, _ = self._env._get_item_type_and_id(tray.value)
-                if class_name is not None:
-                    self._env.tray_available[tray] = True
+                # HACK HARDCODED all trays available
+                # class_name, _ = self._env._get_item_type_and_id(tray.name)
+                # if class_name is not None:
+                #     self._env.tray_available[tray] = True
+                self._env.tray_available[tray] = True
             self._env.perceived_trays = True
         return result, msg
     
@@ -319,11 +334,10 @@ class Actions:
 
     def insert_part_in_container(self, chicken: Item, tray: Tray):
         # arguments: [ID of tray]
-        _, id = self._env._get_item_type_and_id(tray.value)
-        if id is not None:
+        if self._env.tray_place != Tray.unknown_tray:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "insert_part_in_container",
-                [f"{str(id)}"],
+                [f"{str(self._env.tray_place.value)}"],
                 timeout=self._robot_actions_timeout,
             )
         else:
@@ -345,7 +359,7 @@ class Actions:
     def replace_filled_tray(self, chicken: Item, tray: Tray):
         result, msg = PlanDispatcher.run_symbolic_action(
             "wait_for_human_intervention",
-            [f"{tray.value} is full. Replace tray."],
+            [f"{tray.name} is full. Replace tray."],
             timeout=0.0,
         )
         if result:
