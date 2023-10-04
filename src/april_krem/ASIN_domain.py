@@ -4,6 +4,7 @@ from unified_planning.shortcuts import And, Or, Not, StartTiming, EndTiming
 from april_krem.ASIN_components import (
     Item,
     Tray,
+    ArmPose,
     Actions,
     Environment,
 )
@@ -17,9 +18,10 @@ class ASINDomain(Bridge):
         self._env = Environment()
 
         # Create types for planning based on class types
-        self.create_types([Item, Tray])
+        self.create_types([Item, Tray, ArmPose])
         type_item = self.get_type(Item)
         type_tray = self.get_type(Tray)
+        type_arm_pose = self.get_type(ArmPose)
 
         # Create fluents for planning
         self.holding = self.create_fluent_from_function(self._env.holding)
@@ -41,6 +43,9 @@ class ASINDomain(Bridge):
         self.trays_perceived = self.create_fluent_from_function(
             self._env.trays_perceived
         )
+        self.current_arm_pose = self.create_fluent_from_function(
+            self._env.current_arm_pose
+        )
 
         # Create objects for both planning and execution
         self.items = self.create_enum_objects(Item)
@@ -55,6 +60,11 @@ class ASINDomain(Bridge):
         self.med_tray = self.objects[Tray.med_tray.name]
         self.low_tray = self.objects[Tray.low_tray.name]
         self.discard_tray = self.objects[Tray.discard_tray.name]
+
+        self.arm_poses = self.create_enum_objects(ArmPose)
+        self.unknown_pose = self.objects[ArmPose.unknown_pose.name]
+        self.over_conveyor = self.objects[ArmPose.over_conveyor.name]
+        self.over_tray = self.objects[ArmPose.over_tray.name]
 
         # Create actions for planning
         self._create_domain_actions(temporal)
@@ -190,11 +200,86 @@ class ASINDomain(Bridge):
                 self.place_chicken_in_tray.chicken, self.place_chicken_in_tray.tray
             )
         )
+        self.place_chicken_in_tray.add_precondition(
+            self.current_arm_pose(self.over_tray)
+        )
         self.place_chicken_in_tray.add_subtask(
             self.insert_part_in_container,
             self.place_chicken_in_tray.chicken,
             self.place_chicken_in_tray.tray,
         )
+
+        # already holding chicken, move and place
+        self.place_chicken_move = Method(
+            "place_chicken_move", chicken=type_item, tray=type_tray
+        )
+        self.place_chicken_move.set_task(
+            self.place_chicken,
+            self.place_chicken_move.chicken,
+            self.place_chicken_move.tray,
+        )
+        self.place_chicken_move.add_precondition(self.tray_to_place_known())
+        self.place_chicken_move.add_precondition(
+            self.tray_to_place(self.place_chicken_move.tray)
+        )
+        self.place_chicken_move.add_precondition(
+            self.holding(self.place_chicken_move.chicken)
+        )
+        self.place_chicken_move.add_precondition(
+            self.tray_is_available(self.place_chicken_move.tray)
+        )
+        self.place_chicken_move.add_precondition(
+            self.space_in_tray(
+                self.place_chicken_move.chicken, self.place_chicken_move.tray
+            )
+        )
+        self.place_chicken_move.add_precondition(self.current_arm_pose(self.unknown_pose))
+        st1 = self.place_chicken_move.add_subtask(
+            self.move_over_tray_cart,
+            self.place_chicken_move.chicken,
+            self.place_chicken_move.tray,
+        )
+        st2 = self.place_chicken_move.add_subtask(
+            self.insert_part_in_container,
+            self.place_chicken_move.chicken,
+            self.place_chicken_move.tray,
+        )
+        self.place_chicken_move.set_ordered(st1, st2)
+
+        # already over conveyor, pick and place
+        self.place_chicken_pick = Method(
+            "place_chicken_pick", chicken=type_item, tray=type_tray
+        )
+        self.place_chicken_pick.set_task(
+            self.place_chicken,
+            self.place_chicken_pick.chicken,
+            self.place_chicken_pick.tray,
+        )
+        self.place_chicken_pick.add_precondition(self.tray_to_place_known())
+        self.place_chicken_pick.add_precondition(
+            self.tray_to_place(self.place_chicken_pick.tray)
+        )
+        self.place_chicken_pick.add_precondition(self.item_type_is_known())
+        self.place_chicken_pick.add_precondition(
+            self.space_in_tray(
+                self.place_chicken_pick.chicken, self.place_chicken_pick.tray
+            )
+        )
+        self.place_chicken_pick.add_precondition(self.current_arm_pose(self.over_conveyor))
+        st1 = self.place_chicken_pick.add_subtask(
+            self.pick_chicken_part, self.place_chicken_pick.chicken
+        )
+        st2 = self.place_chicken_pick.add_subtask(
+            self.move_over_tray_cart,
+            self.place_chicken_pick.chicken,
+            self.place_chicken_pick.tray,
+        )
+        st3 = self.place_chicken_pick.add_subtask(
+            self.insert_part_in_container,
+            self.place_chicken_pick.chicken,
+            self.place_chicken_pick.tray,
+        )
+        self.place_chicken_pick.set_ordered(st1, st2, st3)
 
         # pick and place chicken
         self.place_chicken_full = Method(
@@ -215,15 +300,22 @@ class ASINDomain(Bridge):
                 self.place_chicken_full.chicken, self.place_chicken_full.tray
             )
         )
+        self.place_chicken_full.add_precondition(self.current_arm_pose(self.unknown_pose))
         st1 = self.place_chicken_full.add_subtask(
-            self.pick_chicken_part, self.place_chicken_full.chicken
+            self.move_over_conveyor_belt, self.place_chicken_full.chicken
         )
         st2 = self.place_chicken_full.add_subtask(
+            self.pick_chicken_part, self.place_chicken_full.chicken
+        )
+        st3 = self.place_chicken_full.add_subtask(
+            self.move_over_tray_cart, self.place_chicken_full.chicken, self.place_chicken_full.tray
+        )
+        st4 = self.place_chicken_full.add_subtask(
             self.insert_part_in_container,
             self.place_chicken_full.chicken,
             self.place_chicken_full.tray,
         )
-        self.place_chicken_full.set_ordered(st1, st2)
+        self.place_chicken_full.set_ordered(st1, st2, st3, st4)
 
         self.pack_chicken_get = Method(
             "pack_chicken_get", chicken=type_item, tray=type_tray
@@ -263,6 +355,8 @@ class ASINDomain(Bridge):
             self.get_chicken_full,
             self.place_chicken_tray_full,
             self.place_chicken_in_tray,
+            self.place_chicken_move,
+            self.place_chicken_pick,
             self.place_chicken_full,
             self.pack_chicken_get,
             self.pack_chicken_place,
@@ -308,6 +402,17 @@ class ASINDomain(Bridge):
             self.perceive_chicken_part.add_precondition(Not(self.item_type_is_known()))
             self.perceive_chicken_part.add_effect(self.item_type_is_known(), True)
 
+            self.move_over_conveyor_belt, [c] = self.create_action(
+                "move_over_conveyor_belt", chicken=Item, _callable=actions.move_over_conveyor_belt
+            )
+            self.move_over_conveyor_belt.add_precondition(self.current_arm_pose(self.unknown_pose))
+            self.move_over_conveyor_belt.add_precondition(self.item_in_fov())
+            self.move_over_conveyor_belt.add_precondition(self.holding(self.nothing))
+            self.move_over_conveyor_belt.add_precondition(self.item_type_is_known())
+            self.move_over_conveyor_belt.add_precondition(self.chicken_to_pick(c))
+            self.move_over_conveyor_belt.add_effect(self.current_arm_pose(self.over_conveyor), True)
+            self.move_over_conveyor_belt.add_effect(self.current_arm_pose(self.unknown_pose), False)
+
             self.pick_chicken_part, [c] = self.create_action(
                 "pick_chicken_part", chicken=Item, _callable=actions.pick_chicken_part
             )
@@ -315,15 +420,31 @@ class ASINDomain(Bridge):
             self.pick_chicken_part.add_precondition(self.holding(self.nothing))
             self.pick_chicken_part.add_precondition(self.item_type_is_known())
             self.pick_chicken_part.add_precondition(self.chicken_to_pick(c))
+            self.pick_chicken_part.add_precondition(self.current_arm_pose(self.over_conveyor))
             self.pick_chicken_part.add_effect(self.holding(c), True)
             self.pick_chicken_part.add_effect(self.item_in_fov(), False)
             self.pick_chicken_part.add_effect(self.holding(self.nothing), False)
+            self.pick_chicken_part.add_effect(self.current_arm_pose(self.over_conveyor), False)
+            self.pick_chicken_part.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
             self.perceive_trays, _ = self.create_action(
                 "perceive_trays", _callable=actions.perceive_trays
             )
             self.perceive_trays.add_precondition(Not(self.trays_perceived()))
             self.perceive_trays.add_effect(self.trays_perceived(), True)
+
+            self.move_over_tray_cart, [c, t] = self.create_action(
+                "move_over_tray_cart", chicken=Item, tray=Tray, _callable=actions.move_over_tray_cart
+            )
+            self.move_over_tray_cart.add_precondition(self.current_arm_pose(self.unknown_pose))
+            self.move_over_tray_cart.add_precondition(self.tray_to_place_known())
+            self.move_over_tray_cart.add_precondition(self.tray_to_place(t))
+            self.move_over_tray_cart.add_precondition(self.holding(c))
+            self.move_over_tray_cart.add_precondition(self.space_in_tray(c, t))
+            self.move_over_tray_cart.add_precondition(self.tray_is_available(t))
+            self.move_over_tray_cart.add_precondition(self.item_type_is_known())
+            self.move_over_tray_cart.add_effect(self.current_arm_pose(self.over_tray), True)
+            self.move_over_tray_cart.add_effect(self.current_arm_pose(self.unknown_pose), False)
 
             self.insert_part_in_container, [c, t] = self.create_action(
                 "insert_part_in_container",
@@ -337,12 +458,15 @@ class ASINDomain(Bridge):
             self.insert_part_in_container.add_precondition(self.space_in_tray(c, t))
             self.insert_part_in_container.add_precondition(self.tray_is_available(t))
             self.insert_part_in_container.add_precondition(self.item_type_is_known())
+            self.insert_part_in_container.add_precondition(self.current_arm_pose(self.over_tray))
             self.insert_part_in_container.add_effect(self.trays_perceived(), False)
             self.insert_part_in_container.add_effect(self.tray_to_place_known(), False)
             self.insert_part_in_container.add_effect(self.tray_to_place(t), False)
             self.insert_part_in_container.add_effect(self.holding(c), False)
             self.insert_part_in_container.add_effect(self.holding(self.nothing), True)
             self.insert_part_in_container.add_effect(self.item_type_is_known(), False)
+            self.insert_part_in_container.add_effect(self.current_arm_pose(self.over_tray), False)
+            self.insert_part_in_container.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
             self.replace_filled_tray, [c, t] = self.create_action(
                 "replace_filled_tray",
