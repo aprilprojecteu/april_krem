@@ -10,7 +10,7 @@ from april_msgs.srv import (
     ObjectsEstimatedPosesSrvResponse,
     ShelfLife,
     ShelfLifeRequest,
-    ShelfLifeResponse
+    ShelfLifeResponse,
 )
 
 from april_krem.plan_dispatcher import PlanDispatcher
@@ -29,6 +29,7 @@ class Tray(Enum):
     med_tray = 2
     high_tray = 3
     discard_tray = 4
+
 
 class ArmPose(Enum):
     unknown_pose = "unknown_pose"
@@ -223,7 +224,7 @@ class Environment:
 
     def trays_perceived(self) -> bool:
         return self.perceived_trays
-    
+
     def current_arm_pose(self, arm_pose: ArmPose) -> bool:
         return arm_pose == self.arm_pose
 
@@ -259,8 +260,10 @@ class Actions:
     def estimate_part_shelf_life(self):
         result, msg = PlanDispatcher.run_symbolic_action("estimate_part_shelf_life")
         if result:
-            #HACK HARDCODED TRAY
+            # HACK HARDCODED TRAY
             self._env.tray_place = Tray.med_tray
+        if not result and self._env.tray_place == Tray.unknown_tray:
+            return False, "failed"
         return result, msg
 
     def perceive_chicken_part(self):
@@ -279,14 +282,22 @@ class Actions:
                 self._env.chicken_type = Item.chicken_part
                 return False
         return result, msg
-    
-    def move_over_conveyor_belt(self, chicken: Item):
-        result, msg = PlanDispatcher.run_symbolic_action(
-            "move_over_conveyor_belt",
-            timeout=self._robot_actions_timeout,
-        )
+
+    def move_arm(self, arm_pose: ArmPose):
+        result = False
+        msg = "failed"
+        if arm_pose == ArmPose.over_conveyor:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_over_conveyor_belt",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.over_tray:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_over_tray_cart",
+                timeout=self._robot_actions_timeout,
+            )
         if result:
-            self._env.arm_pose = ArmPose.over_conveyor
+            self._env.arm_pose = arm_pose
         return result, msg
 
     def pick_chicken_part(self, chicken: Item):
@@ -309,7 +320,7 @@ class Actions:
             return False
 
     def perceive_trays(self):
-        #self._env._clear_item_type("tray")
+        # self._env._clear_item_type("tray")
         result, msg = PlanDispatcher.run_symbolic_action(
             "perceive_trays", timeout=self._non_robot_actions_timeout
         )
@@ -321,15 +332,6 @@ class Actions:
                 #     self._env.tray_available[tray] = True
                 self._env.tray_available[tray] = True
             self._env.perceived_trays = True
-        return result, msg
-    
-    def move_over_tray_cart(self, chicken: Item, tray: Tray):
-        result, msg = PlanDispatcher.run_symbolic_action(
-            "move_over_tray_cart",
-            timeout=self._robot_actions_timeout,
-        )
-        if result:
-            self._env.arm_pose = ArmPose.over_tray
         return result, msg
 
     def insert_part_in_container(self, chicken: Item, tray: Tray):
