@@ -57,6 +57,7 @@ class Environment:
         }
         self.perceived_trays = False
         self.arm_pose = ArmPose.unknown_pose
+        self.cb_moving = False
 
         self._perceived_objects = {}
 
@@ -118,6 +119,7 @@ class Environment:
         }
         self.perceived_trays = False
         self.arm_pose = ArmPose.unknown_pose
+        self.cb_moving = False
 
         self._perceived_objects.clear()
 
@@ -228,6 +230,9 @@ class Environment:
     def current_arm_pose(self, arm_pose: ArmPose) -> bool:
         return arm_pose == self.arm_pose
 
+    def conveyor_is_moving(self) -> bool:
+        return self.cb_moving
+
 
 class Actions:
     def __init__(self, env: Environment):
@@ -248,6 +253,15 @@ class Actions:
             "~robot_actions_timeout", default="120"
         )
 
+    def move_conveyor_belt(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "move_conveyor_belt",
+            timeout=self._non_robot_actions_timeout,
+        )
+        if result:
+            self._env.cb_moving = True
+        return result, msg
+
     def get_next_chicken_part(self):
         result, msg = PlanDispatcher.run_symbolic_action(
             "get_next_chicken_part",
@@ -255,6 +269,7 @@ class Actions:
         )
         if result:
             self._env.chicken_in_fov = True
+            self._env.cb_moving = False
         return result, msg
 
     def estimate_part_shelf_life(self):
