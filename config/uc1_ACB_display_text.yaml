@@ -14,15 +14,12 @@ perceive_chicken_part:
 perceive_trays:
   replanning: false
   message: No Trays detected.
-move_over_conveyor_belt:
+move_arm:
   replanning: false
-  message: Moving arm over conveyor failed.
+  message: Moving arm failed.
 pick_chicken_part:
   replanning: false
   message: Picking of Chicken failed.
-move_over_tray_cart:
-  replanning: false
-  message: Moving arm over tray cart failed.
 insert_part_in_container:
   replanning: false
   message: Not able to place Chicken in Tray.
