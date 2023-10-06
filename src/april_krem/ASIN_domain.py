@@ -436,7 +436,8 @@ class ASINDomain(Bridge):
             self.pack_chicken_place.tray,
         )
         st2 = self.pack_chicken_place.add_subtask(self.move_arm, self.over_tray)
-        self.pack_chicken_place.set_ordered(st1, st2)
+        st3 = self.pack_chicken_place.add_subtask(self.move_arm, self.over_conveyor)
+        self.pack_chicken_place.set_ordered(st1, st2, st3)
 
         # chicken tray is full
         self.pack_chicken_replace = Method(
@@ -444,7 +445,7 @@ class ASINDomain(Bridge):
         )
         self.pack_chicken_replace.set_task(self.pack_chicken)
         self.pack_chicken_replace.add_precondition(
-            self.chicken_to_pick(self.pack_chicken_place.chicken)
+            self.chicken_to_pick(self.pack_chicken_replace.chicken)
         )
         self.pack_chicken_replace.add_precondition(
             Not(
