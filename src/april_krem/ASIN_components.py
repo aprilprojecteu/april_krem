@@ -274,9 +274,6 @@ class Actions:
 
     def estimate_part_shelf_life(self):
         result, msg = PlanDispatcher.run_symbolic_action("estimate_part_shelf_life")
-        if result:
-            # HACK HARDCODED TRAY
-            self._env.tray_place = Tray.med_tray
         if not result and self._env.tray_place == Tray.unknown_tray:
             return False, "failed"
         return result, msg

@@ -1,4 +1,7 @@
 ---
+move_conveyor_belt:
+  replanning: false
+  message: Could not start Conveyor.
 get_next_chicken_part:
   replanning: false
   message: Place Chicken on Conveyor.
