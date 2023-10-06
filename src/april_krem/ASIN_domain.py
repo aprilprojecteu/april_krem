@@ -435,10 +435,7 @@ class ASINDomain(Bridge):
             self.pack_chicken_place.chicken,
             self.pack_chicken_place.tray,
         )
-        st2 = self.pack_chicken_place.add_subtask(
-            self.move_arm,
-            self.over_tray
-        )
+        st2 = self.pack_chicken_place.add_subtask(self.move_arm, self.over_tray)
         self.pack_chicken_place.set_ordered(st1, st2)
 
         # chicken tray is full

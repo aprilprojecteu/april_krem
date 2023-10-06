@@ -43,6 +43,7 @@ class Environment:
             Tray.high_tray: [0, 0],
             Tray.med_tray: [0, 0],
             Tray.low_tray: [0, 0],
+            Tray.discard_tray: [0, 0],
         }
 
         self.chicken_in_fov = False
@@ -105,6 +106,7 @@ class Environment:
             Tray.high_tray: [0, 0],
             Tray.med_tray: [0, 0],
             Tray.low_tray: [0, 0],
+            Tray.discard_tray: [0, 0],
         }
 
         self.chicken_in_fov = False
