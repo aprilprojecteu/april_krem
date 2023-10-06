@@ -54,7 +54,7 @@ class Environment:
             Tray.high_tray: False,
             Tray.med_tray: False,
             Tray.low_tray: False,
-            Tray.discard_tray: True,
+            Tray.discard_tray: False,
         }
         self.perceived_trays = False
         self.arm_pose = ArmPose.unknown_pose
@@ -117,7 +117,7 @@ class Environment:
             Tray.high_tray: False,
             Tray.med_tray: False,
             Tray.low_tray: False,
-            Tray.discard_tray: True,
+            Tray.discard_tray: False,
         }
         self.perceived_trays = False
         self.arm_pose = ArmPose.unknown_pose
@@ -337,7 +337,12 @@ class Actions:
             "perceive_trays", timeout=self._non_robot_actions_timeout
         )
         if result:
-            for tray in [Tray.low_tray, Tray.med_tray, Tray.high_tray]:
+            for tray in [
+                Tray.low_tray,
+                Tray.med_tray,
+                Tray.high_tray,
+                Tray.discard_tray,
+            ]:
                 # HACK HARDCODED all trays available
                 # class_name, _ = self._env._get_item_type_and_id(tray.name)
                 # if class_name is not None:

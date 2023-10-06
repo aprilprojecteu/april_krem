@@ -137,7 +137,7 @@ class ASINDomain(Bridge):
         st3 = self.get_chicken_estimate.add_subtask(self.perceive_trays)
         self.get_chicken_estimate.set_ordered(st1, st2, st3)
 
-        # get next chicken over conveyor and gather all necessary information
+        # get next chicken and gather all necessary information
         self.get_chicken_get = Method(
             "get_chicken_get", chicken=type_item, tray=type_tray
         )
@@ -146,11 +146,28 @@ class ASINDomain(Bridge):
         )
         self.get_chicken_get.add_precondition(Not(self.item_in_fov()))
         self.get_chicken_get.add_precondition(self.conveyor_is_moving())
+        self.get_chicken_get.add_precondition(self.current_arm_pose(self.over_conveyor))
         st1 = self.get_chicken_get.add_subtask(self.get_next_chicken_part)
         st2 = self.get_chicken_get.add_subtask(self.estimate_part_shelf_life)
         st3 = self.get_chicken_get.add_subtask(self.perceive_chicken_part)
         st4 = self.get_chicken_get.add_subtask(self.perceive_trays)
         self.get_chicken_get.set_ordered(st1, st2, st3, st4)
+
+        # get next chicken, move arm over conveyor and gather all necessary information
+        self.get_chicken_move = Method(
+            "get_chicken_move", chicken=type_item, tray=type_tray
+        )
+        self.get_chicken_move.set_task(
+            self.get_chicken, self.get_chicken_move.chicken, self.get_chicken_move.tray
+        )
+        self.get_chicken_move.add_precondition(Not(self.item_in_fov()))
+        self.get_chicken_move.add_precondition(self.conveyor_is_moving())
+        st1 = self.get_chicken_move.add_subtask(self.move_arm, self.over_conveyor)
+        st2 = self.get_chicken_move.add_subtask(self.get_next_chicken_part)
+        st3 = self.get_chicken_move.add_subtask(self.estimate_part_shelf_life)
+        st4 = self.get_chicken_move.add_subtask(self.perceive_chicken_part)
+        st5 = self.get_chicken_move.add_subtask(self.perceive_trays)
+        self.get_chicken_move.set_ordered(st1, st2, st3, st4, st5)
 
         # get next chicken over conveyor and gather all necessary information
         self.get_chicken_full = Method(
@@ -162,11 +179,12 @@ class ASINDomain(Bridge):
         self.get_chicken_full.add_precondition(Not(self.item_in_fov()))
         self.get_chicken_full.add_precondition(Not(self.conveyor_is_moving()))
         st1 = self.get_chicken_full.add_subtask(self.move_conveyor_belt)
-        st2 = self.get_chicken_full.add_subtask(self.get_next_chicken_part)
-        st3 = self.get_chicken_full.add_subtask(self.estimate_part_shelf_life)
-        st4 = self.get_chicken_full.add_subtask(self.perceive_chicken_part)
-        st5 = self.get_chicken_full.add_subtask(self.perceive_trays)
-        self.get_chicken_full.set_ordered(st1, st2, st3, st4, st5)
+        st2 = self.get_chicken_full.add_subtask(self.move_arm, self.over_conveyor)
+        st3 = self.get_chicken_full.add_subtask(self.get_next_chicken_part)
+        st4 = self.get_chicken_full.add_subtask(self.estimate_part_shelf_life)
+        st5 = self.get_chicken_full.add_subtask(self.perceive_chicken_part)
+        st6 = self.get_chicken_full.add_subtask(self.perceive_trays)
+        self.get_chicken_full.set_ordered(st1, st2, st3, st4, st5, st6)
 
         # place chicken
         # already holding chicken, place chicken in tray
@@ -436,8 +454,7 @@ class ASINDomain(Bridge):
             self.pack_chicken_place.tray,
         )
         st2 = self.pack_chicken_place.add_subtask(self.move_arm, self.over_tray)
-        st3 = self.pack_chicken_place.add_subtask(self.move_arm, self.over_conveyor)
-        self.pack_chicken_place.set_ordered(st1, st2, st3)
+        self.pack_chicken_place.set_ordered(st1, st2)
 
         # chicken tray is full
         self.pack_chicken_replace = Method(
@@ -470,6 +487,7 @@ class ASINDomain(Bridge):
             self.get_chicken_estimate,
             self.get_chicken_perceive,
             self.get_chicken_get,
+            self.get_chicken_move,
             self.get_chicken_full,
             self.place_chicken_in_tray,
             self.place_chicken_move_t,
