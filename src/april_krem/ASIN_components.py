@@ -246,9 +246,7 @@ class Actions:
         )
         rospy.loginfo("Grasp Library Service found!")
 
-        self._non_robot_actions_timeout = rospy.get_param(
-            "~non_robot_actions_timeout", default="125"
-        )
+        self._non_robot_actions_timeout = 125.0
         self._robot_actions_timeout = rospy.get_param(
             "~robot_actions_timeout", default="120"
         )
