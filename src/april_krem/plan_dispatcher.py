@@ -39,10 +39,11 @@ class PlanDispatcher:
         "/hicem/run/symbolic_action", RunSymbolicActionAction
     )
     DOMAIN = None
+    KREM_LOGGING = None
 
     def __init__(self, domain, krem_logging, enable_monitor: bool = False):
         PlanDispatcher.DOMAIN = domain
-        self._krem_logging = krem_logging
+        PlanDispatcher.KREM_LOGGING = krem_logging
         self._plan = None
         self._graph = None
         self._executor = None
@@ -151,11 +152,11 @@ class PlanDispatcher:
                     "message", "UNKNOWN ERROR"
                 )
                 if replanning:
-                    self._krem_logging.error_replan_counter += 1
+                    PlanDispatcher.KREM_LOGGING.error_replan_counter += 1
                     rospy.loginfo(message)
                 else:
                     if not rospy.is_shutdown():
-                        self._krem_logging.wfhi_counter += 1
+                        PlanDispatcher.KREM_LOGGING.wfhi_counter += 1
                     wait_for_human_intervention_result = (
                         self.wait_for_human_intervention(message)
                     )
@@ -323,6 +324,7 @@ class PlanDispatcher:
                     rospy.loginfo(
                         f"\033[92mDispatcherROS: Action {action_name} successful!\033[0m"
                     )
+                    cls.KREM_LOGGING.log_info(f"Action {action_name} finished after {rospy.get_rostime().to_sec() - start_time} seconds.")
                     break
                 else:
                     if error_count < 2:
