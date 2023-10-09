@@ -188,6 +188,20 @@ def main():
         krem_logging, use_case, temporal_actions, enable_monitor
     )
 
+    def logging_hook():
+        krem_logging.log_info(
+            f"[DONE] Number of replans due to errors: {krem_logging.error_replan_counter}."
+        )
+        krem_logging.log_info(
+            f"[DONE] Number of wait for human intervention actions {krem_logging.wfhi_counter}."
+        )
+        krem_logging.log_info(
+            f"[DONE] {krem_logging.cycle_counter} Cycles completed after "
+            f"{krem_logging.overall_cycle_time} seconds."
+        )
+
+    rospy.on_shutdown(logging_hook)
+
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         if PlanDispatcher.STATE == KREM_STATE.START:
@@ -225,17 +239,6 @@ def main():
         elif PlanDispatcher.STATE == KREM_STATE.WAITING:
             pass
         rate.sleep()
-    else:
-        krem_logging.log_info(
-            f"[DONE] Number of replans due to errors: {krem_logging.error_replan_counter}."
-        )
-        krem_logging.log_info(
-            f"[DONE] Number of wait for human intervention actions {krem_logging.wfhi_counter}."
-        )
-        krem_logging.log_info(
-            f"[DONE] {krem_logging.cycle_counter} Cycles completed after "
-            f"{krem_logging.overall_cycle_time} seconds.\n\n#########\n"
-        )
 
 
 if __name__ == "__main__":

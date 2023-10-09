@@ -1,7 +1,9 @@
 import os
 import rospkg
+import rospy
 import logging
 
+from std_msgs.msg import String
 
 class KREMLogging:
     def __init__(self):
@@ -25,6 +27,9 @@ class KREMLogging:
         self.krem_logger.addHandler(filehandler)
         self.krem_logger.setLevel(logging.ERROR)
 
+        self._log_pub = rospy.Publisher("/krem/logs", String, queue_size=10)
+
     def log_info(self, msg):
         self.krem_logger.critical(msg)
+        self._log_pub.publish(msg)
         print(msg)
