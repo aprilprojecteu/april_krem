@@ -5,6 +5,7 @@ import logging
 
 from std_msgs.msg import String
 
+
 class KREMLogging:
     def __init__(self):
         self.cycle_complete = False

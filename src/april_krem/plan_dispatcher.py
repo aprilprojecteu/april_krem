@@ -324,7 +324,9 @@ class PlanDispatcher:
                     rospy.loginfo(
                         f"\033[92mDispatcherROS: Action {action_name} successful!\033[0m"
                     )
-                    cls.KREM_LOGGING.log_info(f"Action {action_name} finished after {rospy.get_rostime().to_sec() - start_time} seconds.")
+                    cls.KREM_LOGGING.log_info(
+                        f"Action {action_name} finished after {rospy.get_rostime().to_sec() - start_time} seconds."
+                    )
                     break
                 else:
                     if error_count < 2:

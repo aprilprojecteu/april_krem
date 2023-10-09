@@ -24,7 +24,6 @@ class Item(Enum):
 
 
 class Tray(Enum):
-    unknown_tray = 0
     low_tray = 1
     med_tray = 2
     high_tray = 3
@@ -42,16 +41,23 @@ class Environment:
         self._krem_logging = krem_logging
 
         self.num_chicken_in_tray = {
-            Tray.high_tray: [0, 0],
-            Tray.med_tray: [0, 0],
-            Tray.low_tray: [0, 0],
-            Tray.discard_tray: [0, 0],
+            Tray.high_tray: 0,
+            Tray.med_tray: 0,
+            Tray.low_tray: 0,
+            Tray.discard_tray: 0,
+        }
+
+        self.type_chicken_in_tray = {
+            Tray.high_tray: Item.nothing,
+            Tray.med_tray: Item.nothing,
+            Tray.low_tray: Item.nothing,
+            Tray.discard_tray: Item.nothing,
         }
 
         self.chicken_in_fov = False
         self.chicken_type = Item.chicken_part
         self.holding_item = Item.nothing
-        self.tray_place = Tray.unknown_tray
+        self.tray_place = None
         self.tray_available = {
             Tray.high_tray: False,
             Tray.med_tray: False,
@@ -85,6 +91,12 @@ class Environment:
                 for k, v in self.num_chicken_in_tray.items()
             ]
         )
+        type_chicken_in_tray_str = "\n".join(
+            [
+                f'- "{k.value}" contains "v"'
+                for k, v in self.type_chicken_in_tray.items()
+            ]
+        )
         tray_available_str = "\n".join(
             [f'- "{k.value}" available "{v}"' for k, v in self.tray_available.items()]
         )
@@ -93,6 +105,7 @@ class Environment:
         )
         return (
             f"Chicken count: \n{num_chicken_in_tray_str}\n"
+            f"Type chicken in tray: \n{type_chicken_in_tray_str}\n"
             f"Chicken type: {self.chicken_type.value}\n"
             f"Holding: {self.holding_item.value}\n"
             f"Chicken in FOV: {self.chicken_in_fov}\n"
@@ -105,16 +118,23 @@ class Environment:
 
     def reset_env(self) -> None:
         self.num_chicken_in_tray = {
-            Tray.high_tray: [0, 0],
-            Tray.med_tray: [0, 0],
-            Tray.low_tray: [0, 0],
-            Tray.discard_tray: [0, 0],
+            Tray.high_tray: 0,
+            Tray.med_tray: 0,
+            Tray.low_tray: 0,
+            Tray.discard_tray: 0,
+        }
+
+        self.type_chicken_in_tray = {
+            Tray.high_tray: Item.nothing,
+            Tray.med_tray: Item.nothing,
+            Tray.low_tray: Item.nothing,
+            Tray.discard_tray: Item.nothing,
         }
 
         self.chicken_in_fov = False
         self.chicken_type = Item.chicken_part
         self.holding_item = Item.nothing
-        self.tray_place = Tray.unknown_tray
+        self.tray_place = None
         self.tray_available = {
             Tray.high_tray: False,
             Tray.med_tray: False,
@@ -128,15 +148,16 @@ class Environment:
         self._perceived_objects.clear()
 
     def _calc_space_in_tray(self, chicken_part: Item, tray: Tray) -> bool:
-        counters = self.num_chicken_in_tray.get(tray, None)
-        if counters is not None:
+        counter = self.num_chicken_in_tray.get(tray, None)
+        type_in_tray = self.type_chicken_in_tray.get(tray, None)
+        if counter is not None and type_in_tray is not None:
             if chicken_part in [Item.nothing, Item.chicken_part]:
                 return True
-            elif counters[0] < 4 and counters[1] == 0 and chicken_part == Item.breast:
+            elif type_in_tray == Item.nothing:
                 return True
-            elif (
-                counters[0] == 0 and counters[1] < 6 and chicken_part == Item.drumstick
-            ):
+            elif counter < 4 and type_in_tray == Item.breast:
+                return True
+            elif counter < 6 and type_in_tray == Item.drumstick:
                 return True
             else:
                 return False
@@ -220,10 +241,14 @@ class Environment:
         return self.tray_place == tray
 
     def tray_to_place_known(self) -> bool:
-        return self.tray_place != Tray.unknown_tray
+        return self.tray_place is not None
 
     def space_in_tray(self, chicken_part: Item, tray: Tray) -> bool:
         return self._calc_space_in_tray(chicken_part, tray)
+
+    def type_in_tray(self, chicken_part: Item, tray: Tray) -> bool:
+        chicken_type = self.type_chicken_in_tray.get(tray, None)
+        return chicken_type is not None and chicken_type == chicken_part
 
     def tray_is_available(self, tray: Tray) -> bool:
         return self.tray_available.get(tray, False)
@@ -276,7 +301,7 @@ class Actions:
 
     def estimate_part_shelf_life(self):
         result, msg = PlanDispatcher.run_symbolic_action("estimate_part_shelf_life")
-        if not result and self._env.tray_place == Tray.unknown_tray:
+        if not result and self._env.tray_place is None:
             return False, "failed"
         return result, msg
 
@@ -355,7 +380,7 @@ class Actions:
 
     def insert_part_in_container(self, chicken: Item, tray: Tray):
         # arguments: [ID of tray]
-        if self._env.tray_place != Tray.unknown_tray:
+        if self._env.tray_place is not None:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "insert_part_in_container",
                 [f"{str(self._env.tray_place.value)}"],
@@ -367,14 +392,13 @@ class Actions:
             self._env.holding_item = Item.nothing
             self._env.perceived_trays = False
             self._env.chicken_type = Item.chicken_part
-            self._env.tray_place = Tray.unknown_tray
+            self._env.tray_place = None
             self._env.arm_pose = ArmPose.unknown_pose
-            if chicken == Item.breast:
-                self._env.num_chicken_in_tray[tray][0] += 1
-            elif chicken == Item.drumstick:
-                self._env.num_chicken_in_tray[tray][1] += 1
+            if chicken in [Item.breast, Item.drumstick]:
+                self._env.num_chicken_in_tray[tray] += 1
+                self._env.type_chicken_in_tray[tray] = chicken
             else:
-                return False
+                return False, "failed"
             self._env._krem_logging.cycle_complete = True
         return result, msg
 
@@ -386,7 +410,8 @@ class Actions:
             timeout=0.0,
         )
         if result:
-            self._env.num_chicken_in_tray[tray] = [0, 0]
+            self._env.num_chicken_in_tray[tray] = 0
+            self._env.type_chicken_in_tray[tray] = Item.nothing
             self._env.perceived_trays = False
             self._env.tray_available[tray] = False
         return result, msg

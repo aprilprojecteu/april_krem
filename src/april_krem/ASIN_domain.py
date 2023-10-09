@@ -36,6 +36,7 @@ class ASINDomain(Bridge):
             self._env.tray_to_place_known
         )
         self.space_in_tray = self.create_fluent_from_function(self._env.space_in_tray)
+        self.type_in_tray = self.create_fluent_from_function(self._env.type_in_tray)
         self.tray_is_available = self.create_fluent_from_function(
             self._env.tray_is_available
         )
@@ -57,7 +58,6 @@ class ASINDomain(Bridge):
         self.drumstick = self.objects[Item.drumstick.name]
 
         self.trays = self.create_enum_objects(Tray)
-        self.unknown_tray = self.objects[Tray.unknown_tray.name]
         self.high_tray = self.objects[Tray.high_tray.name]
         self.med_tray = self.objects[Tray.med_tray.name]
         self.low_tray = self.objects[Tray.low_tray.name]
@@ -462,9 +462,6 @@ class ASINDomain(Bridge):
         )
         self.pack_chicken_replace.set_task(self.pack_chicken)
         self.pack_chicken_replace.add_precondition(
-            self.chicken_to_pick(self.pack_chicken_replace.chicken)
-        )
-        self.pack_chicken_replace.add_precondition(
             Not(
                 self.space_in_tray(
                     self.pack_chicken_replace.chicken,
@@ -473,7 +470,9 @@ class ASINDomain(Bridge):
             )
         )
         self.pack_chicken_replace.add_precondition(
-            self.tray_to_place(self.pack_chicken_replace.tray)
+            self.type_in_tray(
+                self.pack_chicken_replace.chicken, self.pack_chicken_replace.tray
+            )
         )
         self.pack_chicken_replace.add_subtask(
             self.replace_filled_tray,
