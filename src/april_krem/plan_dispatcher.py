@@ -40,8 +40,9 @@ class PlanDispatcher:
     )
     DOMAIN = None
 
-    def __init__(self, domain, enable_monitor: bool = False):
+    def __init__(self, domain, krem_logging, enable_monitor: bool = False):
         PlanDispatcher.DOMAIN = domain
+        self._krem_logging = krem_logging
         self._plan = None
         self._graph = None
         self._executor = None
@@ -150,8 +151,11 @@ class PlanDispatcher:
                     "message", "UNKNOWN ERROR"
                 )
                 if replanning:
+                    self._krem_logging.error_replan_counter += 1
                     rospy.loginfo(message)
                 else:
+                    if not rospy.is_shutdown():
+                        self._krem_logging.wfhi_counter += 1
                     wait_for_human_intervention_result = (
                         self.wait_for_human_intervention(message)
                     )
@@ -328,13 +332,13 @@ class PlanDispatcher:
                         )
                         cls.HICEM_ACTION_SERVER.send_goal(run_symbolic_action_goal_msg)
                     else:
-                        rospy.logerr(
+                        rospy.logwarn(
                             f"\033[91mDispatcherROS: Action {action_name} failed 3 times!\033[0m"
                         )
                         return (False, "failed")
             # Check if action timed out, cancel action, return failure
             if timeout > 0.0 and rospy.get_rostime().to_sec() - start_time > timeout:
-                rospy.logerr(
+                rospy.logwarn(
                     f"{action_name} timed out after {initial_timeout} seconds!"
                 )
                 cls.HICEM_ACTION_SERVER.cancel_all_goals()

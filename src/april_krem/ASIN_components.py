@@ -38,7 +38,9 @@ class ArmPose(Enum):
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, krem_logging):
+        self._krem_logging = krem_logging
+
         self.num_chicken_in_tray = {
             Tray.high_tray: [0, 0],
             Tray.med_tray: [0, 0],
@@ -248,9 +250,11 @@ class Actions:
         )
         rospy.loginfo("Grasp Library Service found!")
 
-        self._non_robot_actions_timeout = 125.0
+        self._non_robot_actions_timeout = self._robot_actions_timeout = rospy.get_param(
+            "~non_robot_actions_timeout", default="20.0"
+        )
         self._robot_actions_timeout = rospy.get_param(
-            "~robot_actions_timeout", default="120"
+            "~robot_actions_timeout", default="120.0"
         )
 
     def move_conveyor_belt(self):
@@ -373,9 +377,11 @@ class Actions:
                 self._env.num_chicken_in_tray[tray][1] += 1
             else:
                 return False
+            self._env._krem_logging.cycle_complete = True
         return result, msg
 
     def replace_filled_tray(self, chicken: Item, tray: Tray):
+        self._env._krem_logging.wfhi_counter += 1
         result, msg = PlanDispatcher.run_symbolic_action(
             "wait_for_human_intervention",
             [f"{tray.name} is full. Replace tray."],

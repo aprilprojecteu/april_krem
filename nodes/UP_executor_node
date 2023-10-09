@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time
+
 # ROS
 import rospy
 
@@ -18,18 +20,23 @@ from april_msgs.msg import (
     Gesture,
     PersonGesturesList,
 )
+from april_krem.krem_logging import KREMLogging
 
 
 class AprilPlanDispatcher:
     def __init__(
         self,
+        krem_logging,
         use_case: str = "",
         temporal_actions: bool = False,
         monitoring: bool = False,
     ):
-        self._domain = Domain(use_case=use_case, temporal=temporal_actions)
+        self._krem_logging = krem_logging
+        self._domain = Domain(
+            krem_logging, use_case=use_case, temporal=temporal_actions
+        )
 
-        self._dispatcher = PlanDispatcher(self._domain, monitoring)
+        self._dispatcher = PlanDispatcher(self._domain, krem_logging, monitoring)
         self._plan = None
         self._plan_graph = None
         self._goals = []
@@ -117,9 +124,12 @@ class AprilPlanDispatcher:
 
         if goal_set:
             if self._temporal_actions:
+                plan_start_time = time.time()
                 plan = self._domain.solve(
                     planner_name="aries", metric=MinimizeMakespan()
                 )
+                plan_time = time.time() - plan_start_time
+                self._krem_logging.log_info(f"[Planning] Time: {plan_time}")
                 if plan is not None and plan:
                     rospy.loginfo("DispatcherROS: Found Plan!")
                     for start, action, duration in plan.timed_actions:
@@ -127,9 +137,12 @@ class AprilPlanDispatcher:
                             "%s: %s [%s]" % (float(start), action, float(duration))
                         )
             else:
+                plan_start_time = time.time()
                 plan = self._domain.solve(
                     planner_name="aries", metric=MinimizeSequentialPlanLength()
                 )
+                plan_time = time.time() - plan_start_time
+                self._krem_logging.log_info(f"[Planning] Time: {plan_time}")
                 if plan is not None and plan:
                     # Convert to sequential plan for visualization and execution
                     plan = plan.convert_to(
@@ -170,13 +183,18 @@ def main():
     if not goal:
         goal = None
 
-    dispatcher = AprilPlanDispatcher(use_case, temporal_actions, enable_monitor)
+    krem_logging = KREMLogging()
+    dispatcher = AprilPlanDispatcher(
+        krem_logging, use_case, temporal_actions, enable_monitor
+    )
 
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         if PlanDispatcher.STATE == KREM_STATE.START:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.ACTIVE:
+            if krem_logging.cycle_start_time is None:
+                krem_logging.cycle_start_time = time.time()
             plan_found = dispatcher.plan(goal=goal)
             if not plan_found:
                 dispatcher._domain.specific_domain._env.reset_env()
@@ -190,13 +208,34 @@ def main():
         elif PlanDispatcher.STATE == KREM_STATE.CANCELED:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.FINISHED:
+            if krem_logging.cycle_complete:
+                krem_logging.cycle_counter += 1
+                cycle_time = time.time() - krem_logging.cycle_start_time
+                krem_logging.log_info(
+                    f"[{krem_logging.cycle_counter}. Cycle] Finished after {cycle_time} seconds."
+                )
+                krem_logging.overall_cycle_time += cycle_time
+                krem_logging.cycle_complete = False
+                krem_logging.cycle_start_time = None
+
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-            rospy.sleep(3)
+            rospy.sleep(1)
         elif PlanDispatcher.STATE == KREM_STATE.ERROR:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.WAITING:
             pass
         rate.sleep()
+    else:
+        krem_logging.log_info(
+            f"[DONE] Number of replans due to errors: {krem_logging.error_replan_counter}."
+        )
+        krem_logging.log_info(
+            f"[DONE] Number of wait for human intervention actions {krem_logging.wfhi_counter}."
+        )
+        krem_logging.log_info(
+            f"[DONE] {krem_logging.cycle_counter} Cycles completed after "
+            f"{krem_logging.overall_cycle_time} seconds.\n\n#########\n"
+        )
 
 
 if __name__ == "__main__":

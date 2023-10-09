@@ -13,13 +13,13 @@ from unified_planning.shortcuts import OneshotPlanner
 
 
 class Domain:
-    def __init__(self, use_case: str = "uc6", temporal: bool = False):
+    def __init__(self, krem_logging, use_case: str = "uc6", temporal: bool = False):
         self._use_case = use_case
 
         if use_case == "uc1":
             from april_krem.ASIN_domain import ASINDomain
 
-            self.specific_domain = ASINDomain(temporal)
+            self.specific_domain = ASINDomain(krem_logging, temporal)
         elif use_case == "uc2":
             pass
         elif use_case == "uc3":
