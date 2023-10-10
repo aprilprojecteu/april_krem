@@ -66,7 +66,10 @@ class AprilPlanDispatcher:
                 rospy.logwarn(
                     "Gesture Backup Button 0 pressed! Validate!"
                 )
-                self._domain.specific_domain._env.reset_env_keep_trays()
+                PlanDispatcher.change_state(KREM_STATE.CANCELED)
+                rospy.sleep(1)
+                if self._domain is not None:
+                    self._domain.specific_domain._env.reset_env_keep_trays()
                 PlanDispatcher.change_state(KREM_STATE.ACTIVE)
         # CANCEL
         if msg.gesture_backup_button_state_1:
@@ -74,6 +77,8 @@ class AprilPlanDispatcher:
                 "Gesture Backup Button 1 pressed! Canceling action execution."
             )
             PlanDispatcher.change_state(KREM_STATE.CANCELED)
+            if self._domain is not None:
+                self._domain.specific_domain._env.reset_env()
         # STOP
         elif msg.gesture_backup_button_state_2:
             rospy.logwarn("Gesture Backup Button 2 pressed! Pausing action execution.")

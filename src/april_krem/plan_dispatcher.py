@@ -245,8 +245,6 @@ class PlanDispatcher:
     @classmethod
     def _before_canceled(cls) -> None:
         cls.HICEM_ACTION_SERVER.cancel_all_goals()
-        if cls.DOMAIN is not None:
-            cls.DOMAIN.specific_domain._env.reset_env()
 
     @classmethod
     def _before_timeout(cls) -> None:
