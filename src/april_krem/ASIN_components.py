@@ -147,6 +147,17 @@ class Environment:
 
         self._perceived_objects.clear()
 
+    def reset_env_keep_trays(self) -> None:
+        self.chicken_in_fov = False
+        self.chicken_type = Item.chicken_part
+        self.holding_item = Item.nothing
+        self.tray_place = None
+        self.perceived_trays = False
+        self.arm_pose = ArmPose.unknown_pose
+        self.cb_moving = False
+
+        self._perceived_objects.clear()
+
     def _calc_space_in_tray(self, chicken_part: Item, tray: Tray) -> bool:
         counter = self.num_chicken_in_tray.get(tray, None)
         type_in_tray = self.type_chicken_in_tray.get(tray, None)
