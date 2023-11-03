@@ -99,7 +99,7 @@ class PlanDispatcher:
                             execution_status = "failed"
                             failed_actions.append(action_name)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
-                if execution_status == "failed":
+                if execution_status != "executing":
                     break
 
             # execute action
@@ -118,7 +118,7 @@ class PlanDispatcher:
                             execution_status = result[1]
                             failed_actions.append(action_name)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
-                if execution_status == "failed" or execution_status == "timeout":
+                if execution_status != "executing":
                     break
 
             # check postconditions
@@ -133,7 +133,7 @@ class PlanDispatcher:
                             execution_status = "failed"
                             failed_actions.append(action_name)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
-                if execution_status == "failed":
+                if execution_status != "executing":
                     break
 
             for succ_id in successors:
@@ -143,7 +143,7 @@ class PlanDispatcher:
         if PlanDispatcher.STATE == KREM_STATE.CANCELED:
             return False
 
-        if execution_status == "failed" or execution_status == "timeout":
+        if execution_status != "executing":
             if failed_actions:
                 replanning = self._acb_display_text.get(failed_actions[0], {}).get(
                     "replanning", False
@@ -317,8 +317,8 @@ class PlanDispatcher:
             # check if result is available from HICEM
             if cls.HICEM_ACTION_SERVER.get_result():
                 # result received
-                _action_result = cls.HICEM_ACTION_SERVER.get_result().success
-                if _action_result:
+                _action_result = cls.HICEM_ACTION_SERVER.get_result()
+                if _action_result.success:
                     rospy.loginfo(
                         f"\033[92mDispatcherROS: Action {action_name} successful!\033[0m"
                     )
@@ -327,6 +327,14 @@ class PlanDispatcher:
                     )
                     break
                 else:
+                    for error in _action_result.errors:
+                        # Check for FORCE_OVERLOAD = 181
+                        if error.level_error == 181:
+                            rospy.logwarn(
+                                f"\033[93mDispatcherROS: FORCE_OVERLOAD during {action_name}"
+                                " action! Waiting for human intervention!\033[0m"
+                            )
+                            return (False, "error")
                     if error_count < 2:
                         error_count += 1
                         rospy.logwarn(
