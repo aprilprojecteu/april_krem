@@ -357,7 +357,7 @@ class Actions:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
                 "pick_chicken_part",
-                [f"{str(id)}"],
+                [str(id)],
                 grasp_facts.grasp_strategies,
                 timeout=self._robot_actions_timeout,
             )
@@ -394,7 +394,7 @@ class Actions:
         if self._env.tray_place is not None:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "insert_part_in_container",
-                [f"{str(self._env.tray_place.value)}"],
+                [str(self._env.tray_place.value)],
                 timeout=self._robot_actions_timeout,
             )
         else:

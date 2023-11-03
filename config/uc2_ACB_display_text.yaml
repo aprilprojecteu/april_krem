@@ -1,0 +1,34 @@
+---
+get_next_case:
+  replanning: false
+  message: Put case on conveyor belt.
+perceive_case:
+  replanning: false
+  message: No Case detected on conveyor belt.
+move_arm:
+  replanning: false
+  message: Could not move the arm.
+pick_case:
+  replanning: false
+  message: Could not pick Case.
+place_case:
+  replanning: false
+  message: Could not place Case in fixture.
+pick_insert:
+  replanning: false
+  message: Could not pick Insert.
+insert:
+  replanning: false
+  message: Not able to insert into Case.
+inspect_set:
+  replanning: false
+  message: No result received from Set inspection.
+perceive_set:
+  replanning: false
+  message: Could not detect Set.
+pick_set:
+  replanning: false
+  message: Not able to pick Set.
+place_set_in_box:
+  replanning: false
+  message: Could not place Set in box.

@@ -243,7 +243,7 @@ class Actions:
         _, id = self._env._get_item_type_and_id("insole")
         result, msg = PlanDispatcher.run_symbolic_action(
             "reject_insole",
-            action_arguments=[f"{str(id)}"],
+            action_arguments=[str(id)],
             timeout=self._non_robot_actions_timeout,
         )
         if result:
@@ -283,7 +283,7 @@ class Actions:
         _, set_id = self._env._get_item_type_and_id("set")
         result, msg = PlanDispatcher.run_symbolic_action(
             "match_insole_bag",
-            action_arguments=[f"{str(insole_id)}", f"{str(set_id)}"],
+            action_arguments=[str(insole_id), str(set_id)],
             timeout=self._non_robot_actions_timeout,
         )
         if result:
@@ -302,7 +302,7 @@ class Actions:
         # arguments: [ID of insole]
         result, msg = PlanDispatcher.run_symbolic_action(
             "pick_insole",
-            [f"{str(id)}"],
+            [str(id)],
             grasp_facts.grasp_strategies,
             self._robot_actions_timeout,
         )
@@ -317,7 +317,7 @@ class Actions:
         # arguments: [ID of set]
         result, msg = PlanDispatcher.run_symbolic_action(
             "pick_set",
-            [f"{str(id)}"],
+            [str(id)],
             grasp_facts.grasp_strategies,
             self._robot_actions_timeout,
         )
@@ -330,7 +330,7 @@ class Actions:
         # arguments: [ID of bag (workaround: ID of set)​]
         _, id = self._env._get_item_type_and_id("set")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "insert", [f"{str(id)}"], timeout=self._robot_actions_timeout
+            "insert", [str(id)], timeout=self._robot_actions_timeout
         )
         if result:
             self._env.item_at_location[insole] = Location.in_bag
@@ -381,7 +381,7 @@ class Actions:
         # arguments: [ID of set​]
         _, id = self._env._get_item_type_and_id("set")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "seal_set", [f"{str(id)}"], timeout=self._robot_actions_timeout
+            "seal_set", [str(id)], timeout=self._robot_actions_timeout
         )
         if result:
             self._env.item_at_location[Item.insole] = Location.unknown

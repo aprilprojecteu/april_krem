@@ -18,10 +18,10 @@ class Domain:
 
         if use_case == "uc1":
             from april_krem.ASIN_domain import ASINDomain
-
             self.specific_domain = ASINDomain(krem_logging, temporal)
         elif use_case == "uc2":
-            pass
+            from april_krem.OSAI_domain import OSAIDomain
+            self.specific_domain = OSAIDomain(krem_logging, temporal)
         elif use_case == "uc3":
             pass
         elif use_case == "uc4":
@@ -38,7 +38,6 @@ class Domain:
             pass
         elif use_case == "uc6":
             from april_krem.INES_domain import INESDomain
-
             self.specific_domain = INESDomain(temporal)
 
     def solve(

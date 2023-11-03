@@ -63,9 +63,7 @@ class AprilPlanDispatcher:
         # VALIDATE
         if msg.gesture_backup_button_state_0:
             if self._domain._use_case == "uc1":
-                rospy.logwarn(
-                    "Gesture Backup Button 0 pressed! Validate!"
-                )
+                rospy.logwarn("Gesture Backup Button 0 pressed! Validate!")
                 PlanDispatcher.change_state(KREM_STATE.CANCELED)
                 rospy.sleep(1)
                 if self._domain is not None:
