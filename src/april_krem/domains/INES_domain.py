@@ -1,7 +1,7 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
 from unified_planning.shortcuts import Not, And, Or, StartTiming, EndTiming
-from april_krem.INES_components import (
+from april_krem.domains.INES_components import (
     Item,
     Location,
     Actions,

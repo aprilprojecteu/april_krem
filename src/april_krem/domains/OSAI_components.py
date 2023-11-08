@@ -3,6 +3,7 @@ from enum import Enum
 
 import rospy
 
+from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from april_msgs.srv import (
     GetGraspStrategy,
     ObjectsEstimatedPosesSrv,
@@ -18,6 +19,11 @@ class Item(Enum):
     case = "case"
     insert_o = "insert_o"
     set = "set"
+
+
+class Size(Enum):
+    small = "small"
+    big = "big"
 
 
 class ArmPose(Enum):
@@ -44,7 +50,8 @@ class Environment:
 
         self.item_size = None
         self.set_status = None
-        self.insert_counter = 0
+        self.small_insert_ids = [11, 12, 13, 14, 15, 16]
+        self.big_insert_ids = [21, 22, 23, 24, 25, 26, 31, 32, 33, 34, 35, 36]
 
         self._perceived_objects = {}
 
@@ -53,6 +60,13 @@ class Environment:
             "/hicem/sfg/objects_estimated_poses",
             ObjectsEstimatedPosesSrv,
             self._object_poses_srv,
+        )
+
+        # Set inspection result service
+        rospy.Service(
+            "/hicem/sfg/quality_control/result",
+            SetBool,
+            self._set_inspection_result_srv,
         )
 
     def __str__(self) -> str:
@@ -67,8 +81,16 @@ class Environment:
 
     def reset_env(self) -> None:
         self.holding_item = Item.nothing
+        self.item_in_hand = None
         self.arm_pose = ArmPose.unknown
+
+        self.case_available = False
+        self.placed_case = None
+        self.inserted = False
+        self.set_perceived = False
+
         self.item_size = None
+        self.set_status = None
 
         self._perceived_objects.clear()
 
@@ -111,6 +133,15 @@ class Environment:
                     del self._perceived_objects[k]
                     break
 
+    def _set_inspection_result_srv(self, request: SetBoolRequest) -> SetBoolResponse:
+        if not hasattr(request, "data"):
+            return SetBoolResponse(success=False)
+        if request.data:
+            self.set_status = "ok"
+        else:
+            self.set_status = "nok"
+        return SetBoolResponse(success=True)
+
     def holding(self, item: Item) -> bool:
         return self.holding_item == item
 
@@ -119,6 +150,9 @@ class Environment:
 
     def item_size_known(self) -> bool:
         return self.item_size is not None
+
+    def current_item_size(self, size: Size) -> bool:
+        return self.item_size == size
 
     def set_status_known(self) -> bool:
         return self.set_status is not None
@@ -134,6 +168,13 @@ class Environment:
 
     def inserted_insert(self) -> bool:
         return self.inserted
+
+    def inserts_available(self, size: Size) -> bool:
+        return (
+            len(self.small_insert_ids) > 0
+            if size == Size.small
+            else len(self.big_insert_ids) > 0
+        )
 
 
 class Actions:
@@ -171,16 +212,13 @@ class Actions:
         if result:
             type, _ = self._env._get_item_type_and_id("case")
             if type is not None and "big" in type:
-                self._env.item_size = "big"
+                self._env.item_size = Size.big
             elif type is not None and "small" in type:
-                self._env.item_size = "small"
+                self._env.item_size = Size.small
             else:
                 self._env.item_size = None
                 return False, "failed"
         return result, msg
-
-    def perceive_insert(self):
-        pass
 
     def perceive_set(self):
         result, msg = PlanDispatcher.run_symbolic_action(
@@ -218,9 +256,11 @@ class Actions:
             self._env.arm_pose = arm_pose
         return result, msg
 
-    def pick_case(self, case: Item):
+    def pick_case(self, case: Item, size: Size):
         # arguments: [ID of case]
-        class_name, id = self._env._get_item_type_and_id(self._env.item_size + "_case")
+        class_name, id = self._env._get_item_type_and_id(
+            self._env.item_size.value + "_case"
+        )
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -238,13 +278,16 @@ class Actions:
         else:
             return False, "failed"
 
-    def pick_insert(self, insert: Item):
+    def pick_insert(self, insert: Item, size: Size):
         # arguments: [ID of insert]
-        # TODO add counter or something to tell HICEM what to pick
-        class_name = "UC2_" + self._env.item_size + "_insert"
-        self._env.insert_counter += 1
-        id = self._env.insert_counter
-        if class_name is not None:
+        class_name = "UC2_" + self._env.item_size.value + "_insert"
+        if self._env.item_size == Size.small and self._env.small_insert_ids:
+            id = self._env.small_insert_ids[0]
+        elif self._env.item_size == Size.big and self._env.big_insert_ids:
+            id = self._env.big_insert_ids[0]
+        else:
+            id = None
+        if class_name is not None and id is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "assembly", False)
             result, msg = PlanDispatcher.run_symbolic_action(
                 "pick_insert",
@@ -256,13 +299,19 @@ class Actions:
                 self._env.holding_item = Item.insert_o
                 self._env.item_in_hand = class_name + "_" + str(id)
                 self._env.arm_pose = ArmPose.unknown
+                if self._env.item_size == Size.small:
+                    self._env.small_insert_ids.pop(0)
+                elif self._env.item_size == Size.big:
+                    self._env.big_insert_ids.pop(0)
             return result, msg
         else:
             return False, "failed"
 
     def pick_set(self, set: Item):
         # arguments: [ID of set]
-        class_name, id = self._env._get_item_type_and_id(self._env.item_size + "_case")
+        class_name, id = self._env._get_item_type_and_id(
+            self._env.item_size.value + "_case"
+        )
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -273,7 +322,9 @@ class Actions:
             )
             if result:
                 self._env.holding_item = Item.set
-                self._env.item_in_hand = "UC2_" + self._env.item_size + "_set"
+                self._env.item_in_hand = (
+                    "UC2_" + self._env.item_size.value + "_set" + "_" + str(id)
+                )
                 self._env.arm_pose = ArmPose.unknown
                 self._env.set_perceived = False
                 self._env.placed_case = None
@@ -281,7 +332,7 @@ class Actions:
         else:
             return False, "failed"
 
-    def place_case(self, case: Item):
+    def place_case(self, case: Item, size: Size):
         # arguments: [ID of case]
         if self._env.item_in_hand is not None:
             class_name, _ = self._env.item_in_hand.rsplit("_", 1)
@@ -300,11 +351,12 @@ class Actions:
             return False, "failed"
 
     def place_set_in_box(self, set: Item):
-        # arguments: [Which box, OK or NOK]
+        # arguments: [item class, which box(ok or nok)]
         if self._env.item_in_hand is not None:
+            class_name, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
                 "place_set_in_box",
-                [self._env.set_status],
+                [class_name, self._env.set_status],
                 timeout=self._robot_actions_timeout,
             )
             if result:
@@ -319,7 +371,7 @@ class Actions:
         else:
             return False, "failed"
 
-    def insert(self, insert: Item, case: Item):
+    def insert(self, insert: Item, case: Item, size: Size):
         if self._env.item_in_hand is not None and self._env.placed_case is not None:
             insert_class, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -340,7 +392,31 @@ class Actions:
         result, msg = PlanDispatcher.run_symbolic_action(
             "inspect_set", timeout=self._non_robot_actions_timeout
         )
+        return result, msg
+
+    def restock_inserts(self, size: Size):
+        self._env._krem_logging.wfhi_counter += 1
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "wait_for_human_intervention",
+            [f"{size.value} inserts are empty. Restock {size.value} inserts."],
+            timeout=0.0,
+        )
         if result:
-            # TODO Based on result from HICEM
-            self._env.set_status = "OK"  # NOK
+            if size == Size.small:
+                self._env.small_insert_ids = [11, 12, 13, 14, 15, 16]
+            elif size == Size.big:
+                self._env.big_insert_ids = [
+                    21,
+                    22,
+                    23,
+                    24,
+                    25,
+                    26,
+                    31,
+                    32,
+                    33,
+                    34,
+                    35,
+                    36,
+                ]
         return result, msg

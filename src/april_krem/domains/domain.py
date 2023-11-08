@@ -17,15 +17,21 @@ class Domain:
         self._use_case = use_case
 
         if use_case == "uc1":
-            from april_krem.ASIN_domain import ASINDomain
+            from april_krem.domains.ASIN_domain import ASINDomain
+
             self.specific_domain = ASINDomain(krem_logging, temporal)
         elif use_case == "uc2":
-            from april_krem.OSAI_domain import OSAIDomain
+            from april_krem.domains.OSAI_domain import OSAIDomain
+
             self.specific_domain = OSAIDomain(krem_logging, temporal)
         elif use_case == "uc3":
-            pass
+            from april_krem.domains.INCM_domain import INCMDomain
+
+            self.specific_domain = INCMDomain(krem_logging, temporal)
         elif use_case == "uc4":
-            pass
+            from april_krem.domains.OSAI_domain import OSAIDomain
+
+            self.specific_domain = OSAIDomain(krem_logging, temporal)
         elif use_case == "uc5_1":
             pass
         elif use_case == "uc5_2":
@@ -37,7 +43,8 @@ class Domain:
         elif use_case == "uc5_5":
             pass
         elif use_case == "uc6":
-            from april_krem.INES_domain import INESDomain
+            from april_krem.domains.INES_domain import INESDomain
+
             self.specific_domain = INESDomain(temporal)
 
     def solve(
@@ -118,8 +125,8 @@ class Domain:
         self.problem = self.define_problem()
         self.set_initial_values()
         goal_set = self.specific_domain.set_state_and_goal(self.problem, goal)
-        # s = ""
-        # for k, v in self.problem.explicit_initial_values.items():
-        #     s += f"  {str(k)} := {str(v)}\n"
-        # print(s)
+        s = ""
+        for k, v in self.problem.explicit_initial_values.items():
+            s += f"  {str(k)} := {str(v)}\n"
+        print(s)
         return goal_set

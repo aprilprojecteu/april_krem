@@ -1,7 +1,7 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
 from unified_planning.shortcuts import And, Or, Not, StartTiming, EndTiming
-from april_krem.ASIN_components import (
+from april_krem.domains.ASIN_components import (
     Item,
     Tray,
     ArmPose,
@@ -80,7 +80,7 @@ class ASINDomain(Bridge):
 
         # Methods
 
-        # get_chicken
+        # GET CHICKEN
         # chicken already there, all information gathered
         self.get_chicken_noop = Method(
             "get_chicken_noop", chicken=type_item, tray=type_tray
@@ -186,7 +186,7 @@ class ASINDomain(Bridge):
         st6 = self.get_chicken_full.add_subtask(self.perceive_trays)
         self.get_chicken_full.set_ordered(st1, st2, st3, st4, st5, st6)
 
-        # place chicken
+        # PLACE CHICKEN
         # already holding chicken, place chicken in tray
         self.place_chicken_in_tray = Method(
             "place_chicken_in_tray", chicken=type_item, tray=type_tray
@@ -424,6 +424,8 @@ class ASINDomain(Bridge):
         )
         self.place_chicken_full.set_ordered(st1, st2, st3, st4, st5, st6)
 
+        # PACK CHICKEN
+        # get chicken, estimate, perceive
         self.pack_chicken_get = Method(
             "pack_chicken_get", chicken=type_item, tray=type_tray
         )
@@ -441,6 +443,7 @@ class ASINDomain(Bridge):
             self.get_chicken, self.pack_chicken_get.chicken, self.pack_chicken_get.tray
         )
 
+        # pick chicken, place in corresponding tray
         self.pack_chicken_place = Method(
             "pack_chicken_place", chicken=type_item, tray=type_tray
         )

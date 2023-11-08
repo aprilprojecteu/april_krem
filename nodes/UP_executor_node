@@ -13,7 +13,7 @@ from unified_planning.model.metrics import (
 )
 
 # April
-from april_krem.domain import Domain
+from april_krem.domains.domain import Domain
 from april_krem.plan_dispatcher import PlanDispatcher, KREM_STATE
 from april_msgs.msg import (
     GestureBackupButtonStates,
@@ -151,7 +151,7 @@ class AprilPlanDispatcher:
                 )
                 plan_time = time.time() - plan_start_time
                 self._krem_logging.log_info(f"[Planning] Time: {plan_time}")
-                if plan is not None and plan:
+                if plan is not None and plan._actions:
                     # Convert to sequential plan for visualization and execution
                     plan = plan.convert_to(
                         PlanKind.SEQUENTIAL_PLAN, self._domain.problem
@@ -160,7 +160,7 @@ class AprilPlanDispatcher:
         else:
             rospy.signal_shutdown("")
 
-        if plan is not None and plan:
+        if plan is not None and plan._actions:
             self._plan = plan
             self._plan_graph = self._domain.specific_domain.get_executable_graph(plan)
             return True
