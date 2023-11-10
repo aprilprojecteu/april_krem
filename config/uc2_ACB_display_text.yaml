@@ -20,7 +20,7 @@ pick_insert:
 insert:
   replanning: false
   message: Not able to insert into Case.
-inspect_set:
+inspect:
   replanning: false
   message: No result received from Set inspection.
 perceive_set:

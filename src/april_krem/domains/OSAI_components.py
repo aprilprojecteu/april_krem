@@ -388,9 +388,9 @@ class Actions:
         else:
             return False, "failed"
 
-    def inspect_set(self):
+    def inspect(self):
         result, msg = PlanDispatcher.run_symbolic_action(
-            "inspect_set", timeout=self._non_robot_actions_timeout
+            "inspect", timeout=self._non_robot_actions_timeout
         )
         return result, msg
 
