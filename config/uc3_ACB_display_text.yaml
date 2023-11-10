@@ -1,0 +1,25 @@
+---
+perceive_passport:
+  replanning: false
+  message: No Passport detected on support.
+move_arm:
+  replanning: false
+  message: Could not move the arm.
+pick_passport:
+  replanning: false
+  message: Could not pick Passport.
+inspect:
+  replanning: false
+  message: No result received from inspection.
+place_passport_in_box:
+  replanning: false
+  message: Could not place Passport in box.
+read_mrz:
+  replanning: false
+  message: Could not read MRZ.
+read_chip:
+  replanning: false
+  message: Could not read Chip.
+empty_box:
+  replanning: false
+  message: Waiting for emptying of boxes.
