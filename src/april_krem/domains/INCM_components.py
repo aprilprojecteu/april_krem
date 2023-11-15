@@ -248,25 +248,6 @@ class Actions:
         else:
             return False, "failed"
 
-    # def pick_passport_for_placing(self, passport: Item):
-    #     # arguments: [ID of passport]
-    #     class_name, id = self._env._get_item_type_and_id("passport")
-    #     if class_name is not None:
-    #         grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
-    #         result, msg = PlanDispatcher.run_symbolic_action(
-    #             "pick_passport",
-    #             [str(id)],
-    #             grasp_facts.grasp_strategies,
-    #             timeout=self._robot_actions_timeout,
-    #         )
-    #         if result:
-    #             self._env.holding_item = Item.passport
-    #             self._env.item_in_hand = class_name + "_" + str(id)
-    #             self._env.arm_pose = ArmPose.unknown
-    #         return result, msg
-    #     else:
-    #         return False, "failed"
-
     def read_mrz(self, passport: Item):
         if self._env.item_in_hand is not None:
             result, msg = PlanDispatcher.run_symbolic_action(

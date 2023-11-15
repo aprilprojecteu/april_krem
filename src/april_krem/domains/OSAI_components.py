@@ -21,11 +21,6 @@ class Item(Enum):
     set = "set"
 
 
-class Size(Enum):
-    small = "small"
-    big = "big"
-
-
 class ArmPose(Enum):
     unknown = "unknown"
     home = "home"
@@ -33,6 +28,16 @@ class ArmPose(Enum):
     over_fixture = "over_fixture"
     over_pallet = "over_pallet"
     over_boxes = "over_boxes"
+
+
+class Size(Enum):
+    small = "small"
+    big = "big"
+
+
+class Status(Enum):
+    ok = "ok"
+    nok = "nok"
 
 
 class Environment:
@@ -46,10 +51,15 @@ class Environment:
         self.case_available = False
         self.placed_case = None
         self.inserted = False
+        self.insert_perceived = False
         self.set_perceived = False
 
         self.item_size = None
         self.set_status = None
+        self.box_status = {
+            Status.ok: 1,
+            Status.nok: 1,
+        }
         self.small_insert_ids = [11, 12, 13, 14, 15, 16]
         self.big_insert_ids = [21, 22, 23, 24, 25, 26, 31, 32, 33, 34, 35, 36]
 
@@ -87,10 +97,16 @@ class Environment:
         self.case_available = False
         self.placed_case = None
         self.inserted = False
+        self.insert_perceived = False
         self.set_perceived = False
 
         self.item_size = None
         self.set_status = None
+
+        self.box_status = {
+            Status.ok: 1,
+            Status.nok: 1,
+        }
 
         self._perceived_objects.clear()
 
@@ -137,9 +153,9 @@ class Environment:
         if not hasattr(request, "data"):
             return SetBoolResponse(success=False)
         if request.data:
-            self.set_status = "ok"
+            self.set_status = Status.ok
         else:
-            self.set_status = "nok"
+            self.set_status = Status.nok
         return SetBoolResponse(success=True)
 
     def holding(self, item: Item) -> bool:
@@ -157,11 +173,17 @@ class Environment:
     def set_status_known(self) -> bool:
         return self.set_status is not None
 
+    def status_of_set(self, status: Status) -> bool:
+        return self.set_status == status if self.set_status is not None else False
+
     def item_in_fov(self) -> bool:
         return self.case_available
 
     def case_is_placed(self) -> bool:
         return self.placed_case is not None
+
+    def perceived_insert(self) -> bool:
+        return self.insert_perceived
 
     def perceived_set(self) -> bool:
         return self.set_perceived
@@ -175,6 +197,9 @@ class Environment:
             if size == Size.small
             else len(self.big_insert_ids) > 0
         )
+
+    def space_in_box(self, status: Status) -> bool:
+        return self.box_status[status] < 3
 
 
 class Actions:
@@ -218,6 +243,15 @@ class Actions:
             else:
                 self._env.item_size = None
                 return False, "failed"
+        return result, msg
+
+    def perceive_insert(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "perceive_insert",
+            timeout=self._non_robot_actions_timeout,
+        )
+        if result:
+            self._env.insert_perceived = True
         return result, msg
 
     def perceive_set(self):
@@ -303,6 +337,7 @@ class Actions:
                     self._env.small_insert_ids.pop(0)
                 elif self._env.item_size == Size.big:
                     self._env.big_insert_ids.pop(0)
+                self._env.insert_perceived = False
             return result, msg
         else:
             return False, "failed"
@@ -310,7 +345,7 @@ class Actions:
     def pick_set(self, set: Item):
         # arguments: [ID of set]
         class_name, id = self._env._get_item_type_and_id(
-            self._env.item_size.value + "_case"
+            self._env.item_size.value + "_set"
         )
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
@@ -350,19 +385,24 @@ class Actions:
         else:
             return False, "failed"
 
-    def place_set_in_box(self, set: Item):
+    def place_set_in_box(self, set: Item, status: Status):
         # arguments: [item class, which box(ok or nok)]
         if self._env.item_in_hand is not None:
             class_name, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
                 "place_set_in_box",
-                [class_name, self._env.set_status],
+                [
+                    class_name,
+                    self._env.set_status.value,
+                    str(self._env.box_status[self._env.set_status]),
+                ],
                 timeout=self._robot_actions_timeout,
             )
             if result:
                 self._env.holding_item = Item.nothing
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
+                self._env.box_status[self._env.set_status] += 1
                 self._env.set_status = None
                 self._env.inserted = False
                 self._env.item_size = None
@@ -419,4 +459,15 @@ class Actions:
                     35,
                     36,
                 ]
+        return result, msg
+
+    def empty_box(self, status: Status):
+        self._env._krem_logging.wfhi_counter += 1
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "wait_for_human_intervention",
+            [f"{status.value} box is full. Empty box."],
+            timeout=0.0,
+        )
+        if result:
+            self._env.box_status[status] = 1
         return result, msg

@@ -29,9 +29,9 @@ class Domain:
 
             self.specific_domain = INCMDomain(krem_logging, temporal)
         elif use_case == "uc4":
-            from april_krem.domains.OSAI_domain import OSAIDomain
+            from april_krem.domains.PEMU_domain import PEMUDomain
 
-            self.specific_domain = OSAIDomain(krem_logging, temporal)
+            self.specific_domain = PEMUDomain(krem_logging, temporal)
         elif use_case == "uc5_1":
             pass
         elif use_case == "uc5_2":

@@ -14,6 +14,9 @@ pick_case:
 place_case:
   replanning: false
   message: Could not place Case in fixture.
+perceive_insert:
+  replanning: false
+  message: Could not detect inserts.
 pick_insert:
   replanning: false
   message: Could not pick Insert.
