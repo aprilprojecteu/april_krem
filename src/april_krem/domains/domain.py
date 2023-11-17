@@ -45,7 +45,7 @@ class Domain:
         elif use_case == "uc6":
             from april_krem.domains.INES_domain import INESDomain
 
-            self.specific_domain = INESDomain(temporal)
+            self.specific_domain = INESDomain(krem_logging, temporal)
 
     def solve(
         self,

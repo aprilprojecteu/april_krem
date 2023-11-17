@@ -11,10 +11,10 @@ from up_esb.bridge import Bridge
 
 
 class INESDomain(Bridge):
-    def __init__(self, temporal: bool = False) -> None:
+    def __init__(self, krem_logging, temporal: bool = False) -> None:
         Bridge.__init__(self)
 
-        self._env = Environment()
+        self._env = Environment(krem_logging)
 
         # Create types for planning based on class types
         self.create_types([Item, Location])

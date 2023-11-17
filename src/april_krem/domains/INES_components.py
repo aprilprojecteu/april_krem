@@ -35,7 +35,9 @@ class Location(Enum):
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, krem_logging):
+        self._krem_logging = krem_logging
+
         use_case = rospy.get_param("use_case", default="uc6")
         facts_config_file = use_case + "_facts_config.yaml"
         facts_config_path = os.path.join(
@@ -391,4 +393,5 @@ class Actions:
             self._env.set_released = False
             self._env.not_checked_types = True
             self._env._perceived_objects.clear()
+            self._env._krem_logging.cycle_complete = True
         return result, msg
