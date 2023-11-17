@@ -21,6 +21,7 @@ class Item(Enum):
 class ArmPose(Enum):
     unknown = "unknown"
     over_passport = "over_passport"
+    take_out_passport = "take_out_passport"
     over_mrz = "over_mrz"
     over_chip = "over_chip"
     over_boxes = "over_boxes"
@@ -197,6 +198,11 @@ class Actions:
         if arm_pose == ArmPose.over_passport:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_passport_supports",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.take_out_passport:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "take_out_passport",
                 timeout=self._robot_actions_timeout,
             )
         elif arm_pose == ArmPose.over_mrz:

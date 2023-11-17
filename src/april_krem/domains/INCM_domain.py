@@ -53,6 +53,7 @@ class INCMDomain(Bridge):
         self.arm_poses = self.create_enum_objects(ArmPose)
         self.unknown = self.objects[ArmPose.unknown.name]
         self.over_passport = self.objects[ArmPose.over_passport.name]
+        self.take_out_passport = self.objects[ArmPose.take_out_passport.name]
         self.over_mrz = self.objects[ArmPose.over_mrz.name]
         self.over_chip = self.objects[ArmPose.over_chip.name]
         self.over_boxes = self.objects[ArmPose.over_boxes.name]
@@ -107,7 +108,7 @@ class INCMDomain(Bridge):
         self.get_passport_move_arm_1.add_precondition(
             self.holding(self.get_passport_move_arm_1.passport)
         )
-        self.get_passport_move_arm_1.add_subtask(self.move_arm, self.over_passport)
+        self.get_passport_move_arm_1.add_subtask(self.move_arm, self.take_out_passport)
 
         # perceived passport, pick it up
         self.get_passport_pick = Method("get_passport_pick", passport=type_item)
@@ -122,7 +123,7 @@ class INCMDomain(Bridge):
         s1 = self.get_passport_pick.add_subtask(
             self.pick_passport, self.get_passport_pick.passport
         )
-        s2 = self.get_passport_pick.add_subtask(self.move_arm, self.over_passport)
+        s2 = self.get_passport_pick.add_subtask(self.move_arm, self.take_out_passport)
         self.get_passport_pick.set_ordered(s1, s2)
 
         # perceive passport, pick it up
@@ -138,7 +139,9 @@ class INCMDomain(Bridge):
         s2 = self.get_passport_perceive.add_subtask(
             self.pick_passport, self.get_passport_perceive.passport
         )
-        s3 = self.get_passport_perceive.add_subtask(self.move_arm, self.over_passport)
+        s3 = self.get_passport_perceive.add_subtask(
+            self.move_arm, self.take_out_passport
+        )
         self.get_passport_perceive.set_ordered(s1, s2, s3)
 
         # move arm over passport, perceive passport, pick it up, move arm over passport
@@ -155,7 +158,7 @@ class INCMDomain(Bridge):
         s3 = self.get_passport_full.add_subtask(
             self.pick_passport, self.get_passport_full.passport
         )
-        s4 = self.get_passport_full.add_subtask(self.move_arm, self.over_passport)
+        s4 = self.get_passport_full.add_subtask(self.move_arm, self.take_out_passport)
         self.get_passport_full.set_ordered(s1, s2, s3, s4)
 
         # READ MRZ
@@ -192,7 +195,9 @@ class INCMDomain(Bridge):
         self.read_mrz_full = Method("read_mrz_full", passport=type_item)
         self.read_mrz_full.set_task(self.t_read_mrz, self.read_mrz_full.passport)
         self.read_mrz_full.add_precondition(Not(self.mrz_reader_used()))
-        self.read_mrz_full.add_precondition(self.current_arm_pose(self.over_passport))
+        self.read_mrz_full.add_precondition(
+            self.current_arm_pose(self.take_out_passport)
+        )
         self.read_mrz_full.add_precondition(self.holding(self.read_mrz_full.passport))
         s1 = self.read_mrz_full.add_subtask(self.move_arm, self.over_mrz)
         s2 = self.read_mrz_full.add_subtask(self.read_mrz, self.read_mrz_full.passport)
