@@ -411,6 +411,7 @@ class Actions:
             else:
                 return False, "failed"
             self._env._krem_logging.cycle_complete = True
+            self._env._perceived_objects.clear()
         return result, msg
 
     def replace_filled_tray(self, chicken: Item, tray: Tray):

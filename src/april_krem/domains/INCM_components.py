@@ -298,6 +298,7 @@ class Actions:
                 self._env.used_mrz_reader = False
                 self._env.used_chip_reader = False
                 self._env._krem_logging.cycle_complete = True
+                self._env._perceived_objects.clear()
             return result, msg
         else:
             return False, "failed"

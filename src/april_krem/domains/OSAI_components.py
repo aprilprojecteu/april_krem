@@ -407,6 +407,7 @@ class Actions:
                 self._env.inserted = False
                 self._env.item_size = None
                 self._env._krem_logging.cycle_complete = True
+                self._env._perceived_objects.clear()
             return result, msg
         else:
             return False, "failed"
