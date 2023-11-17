@@ -2,6 +2,7 @@ from typing import Tuple
 from enum import Enum
 
 import rospy
+
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from april_msgs.srv import (
     GetGraspStrategy,
@@ -15,15 +16,19 @@ from april_krem.plan_dispatcher import PlanDispatcher
 
 class Item(Enum):
     nothing = "nothing"
-    passport = "passport"
+    pillow = "pillow"
 
 
 class ArmPose(Enum):
     unknown = "unknown"
-    over_passport = "over_passport"
-    over_mrz = "over_mrz"
-    over_chip = "over_chip"
+    over_table = "over_table"
+    over_scale = "over_scale"
     over_boxes = "over_boxes"
+
+
+class Size(Enum):
+    small = "small"
+    big = "big"
 
 
 class Status(Enum):
@@ -39,10 +44,12 @@ class Environment:
         self.item_in_hand = None
         self.arm_pose = ArmPose.unknown
 
-        self.passport_perceived = False
-        self.used_mrz_reader = False
-        self.used_chip_reader = False
-        self.passport_status = None
+        self.pillow_perceived = False
+        self.pillow_status = None
+        self.item_size = None
+        self.weighted_pillow = False
+        self.pillow_is_on_scale = False
+        self.pillow_is_in_box = False
 
         self.box_status = {
             Status.ok: 1,
@@ -58,11 +65,11 @@ class Environment:
             self._object_poses_srv,
         )
 
-        # Set inspection result service
+        # Pillow inspection result service
         rospy.Service(
             "/hicem/sfg/quality_control/result",
             SetBool,
-            self._passport_inspection_result_srv,
+            self._pillow_inspection_result_srv,
         )
 
     def reset_env(self) -> None:
@@ -70,10 +77,12 @@ class Environment:
         self.arm_pose = ArmPose.unknown
         self.item_in_hand = None
 
-        self.passport_perceived = False
-        self.used_mrz_reader = False
-        self.used_chip_reader = False
-        self.passport_status = None
+        self.pillow_perceived = False
+        self.pillow_status = None
+        self.item_size = None
+        self.weighted_pillow = False
+        self.pillow_is_on_scale = False
+        self.pillow_is_in_box = False
 
         self.box_status = {
             Status.ok: 1,
@@ -121,15 +130,13 @@ class Environment:
                     del self._perceived_objects[k]
                     break
 
-    def _passport_inspection_result_srv(
-        self, request: SetBoolRequest
-    ) -> SetBoolResponse:
+    def _pillow_inspection_result_srv(self, request: SetBoolRequest) -> SetBoolResponse:
         if not hasattr(request, "data"):
             return SetBoolResponse(success=False)
         if request.data:
-            self.passport_status = Status.ok
+            self.pillow_status = Status.ok
         else:
-            self.passport_status = Status.nok
+            self.pillow_status = Status.nok
         return SetBoolResponse(success=True)
 
     def holding(self, item: Item) -> bool:
@@ -138,27 +145,32 @@ class Environment:
     def current_arm_pose(self, arm_pose: ArmPose) -> bool:
         return arm_pose == self.arm_pose
 
-    def perceived_passport(self) -> bool:
-        return self.passport_perceived
+    def item_size_known(self) -> bool:
+        return self.item_size is not None
 
-    def passport_status_known(self) -> bool:
-        return self.passport_status is not None
+    def current_item_size(self, size: Size) -> bool:
+        return self.item_size == size
 
-    def status_of_passport(self, status: Status) -> bool:
-        return (
-            self.passport_status == status
-            if self.passport_status is not None
-            else False
-        )
+    def pillow_status_known(self) -> bool:
+        return self.pillow_status is not None
 
-    def mrz_reader_used(self) -> bool:
-        return self.used_mrz_reader
+    def status_of_pillow(self, status: Status) -> bool:
+        return self.pillow_status == status if self.pillow_status is not None else False
 
-    def chip_reader_used(self) -> bool:
-        return self.used_chip_reader
+    def perceived_pillow(self) -> bool:
+        return self.pillow_perceived
 
     def space_in_box(self, status: Status) -> bool:
         return self.box_status[status] < 3
+
+    def pillow_weight_known(self) -> bool:
+        return self.weighted_pillow
+
+    def pillow_on_scale(self) -> bool:
+        return self.pillow_is_on_scale
+
+    def pillow_in_box(self) -> bool:
+        return self.pillow_is_in_box
 
 
 class Actions:
@@ -178,35 +190,35 @@ class Actions:
             "~robot_actions_timeout", default="120"
         )
 
-    def perceive_passport(self):
-        self._env._clear_item_type("passport")
+    def perceive_pillow(self):
+        self._env._clear_item_type("pillow")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "perceive_passport",
+            "perceive_pillow",
             timeout=self._non_robot_actions_timeout,
         )
         if result:
-            type, _ = self._env._get_item_type_and_id("passport")
-            if type:
-                self._env.passport_perceived = True
-
+            type, _ = self._env._get_item_type_and_id("pillow")
+            if type is not None and "big" in type:
+                self._env.item_size = Size.big
+            elif type is not None and "small" in type:
+                self._env.item_size = Size.small
+            else:
+                self._env.item_size = None
+                return False, "failed"
+            self._env.pillow_perceived = True
         return result, msg
 
     def move_arm(self, arm_pose: ArmPose):
         result = False
         msg = "failed"
-        if arm_pose == ArmPose.over_passport:
+        if arm_pose == ArmPose.over_table:
             result, msg = PlanDispatcher.run_symbolic_action(
-                "move_over_passport_supports",
+                "move_over_table",
                 timeout=self._robot_actions_timeout,
             )
-        elif arm_pose == ArmPose.over_mrz:
+        elif arm_pose == ArmPose.over_scale:
             result, msg = PlanDispatcher.run_symbolic_action(
-                "move_over_mrz_reader",
-                timeout=self._robot_actions_timeout,
-            )
-        elif arm_pose == ArmPose.over_chip:
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "move_over_chip_reader",
+                "move_over_scale",
                 timeout=self._robot_actions_timeout,
             )
         elif arm_pose == ArmPose.over_boxes:
@@ -218,68 +230,64 @@ class Actions:
             self._env.arm_pose = arm_pose
         return result, msg
 
-    def pick_passport(self, passport: Item):
-        # arguments: [ID of passport]
-        class_name, id = self._env._get_item_type_and_id("passport")
+    def pick_pillow(self, pillow: Item, size: Size):
+        # arguments: [ID of pillow]
+        class_name, id = self._env._get_item_type_and_id("pillow")
         if class_name is not None:
-            grasp_facts = self._grasp_library_srv("mia", class_name, "sliding", False)
+            grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
-                "pick_passport",
+                "pick_pillow",
                 [str(id)],
                 grasp_facts.grasp_strategies,
                 timeout=self._robot_actions_timeout,
             )
             if result:
-                self._env.holding_item = Item.passport
+                self._env.holding_item = Item.pillow
                 self._env.item_in_hand = class_name + "_" + str(id)
                 self._env.arm_pose = ArmPose.unknown
-                self._env.passport_perceived = False
+                self._env.pillow_perceived = False
+                self._env.pillow_is_on_scale = False
             return result, msg
         else:
             return False, "failed"
 
-    def read_mrz(self, passport: Item):
+    def place_pillow_on_scale(self, pillow: Item, size: Size):
+        # arguments: [ID of pillow]
         if self._env.item_in_hand is not None:
+            class_name, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
-                "read_mrz",
-                [],
+                "place_pillow_on_scale",
+                [class_name],
                 timeout=self._robot_actions_timeout,
             )
             if result:
-                self._env.used_mrz_reader = True
+                self._env.holding_item = Item.nothing
+                self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
+                self._env.pillow_is_on_scale = True
             return result, msg
         else:
             return False, "failed"
 
-    def read_chip(self, passport: Item):
-        if self._env.item_in_hand is not None:
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "read_chip",
-                [],
-                timeout=self._robot_actions_timeout,
-            )
-            if result:
-                self._env.used_chip_reader = True
-                self._env.arm_pose = ArmPose.unknown
-            return result, msg
-        else:
-            return False, "failed"
-
-    def inspect(self, passport: Item):
+    def weigh_pillow(self):
         result, msg = PlanDispatcher.run_symbolic_action(
-            "inspect", timeout=self._non_robot_actions_timeout
+            "weigh_pillow",
+            timeout=self._non_robot_actions_timeout,
         )
+        if result:
+            self._env.weighted_pillow = True
         return result, msg
 
-    def place_passport_in_box(self, passport: Item, status: Status):
-        # arguments: ["ok" | "nok", 1 = empty | 2 = one in box]
+    def place_pillow_in_box(self, pillow: Item, status: Status):
+        # arguments: [item class, which box(ok or nok), box status]
         if self._env.item_in_hand is not None:
+            class_name, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
-                "place_passport_in_box",
+                "place_pillow_in_box",
                 [
-                    self._env.passport_status.value,
-                    str(self._env.box_status[self._env.passport_status]),
+                    class_name,
+                    self._env.pillow_status.value,
+                    str(self._env.box_status[self._env.pillow_status]),
                 ],
                 timeout=self._robot_actions_timeout,
             )
@@ -287,14 +295,30 @@ class Actions:
                 self._env.holding_item = Item.nothing
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
-                self._env.box_status[self._env.passport_status] += 1
-                self._env.passport_status = None
-                self._env.used_mrz_reader = False
-                self._env.used_chip_reader = False
+                self._env.box_status[self._env.pillow_status] += 1
+                self._env.pillow_status = None
+                self._env.item_size = None
+                self._env.weighted_pillow = False
+                self._env.pillow_is_in_box = True
                 self._env._krem_logging.cycle_complete = True
             return result, msg
         else:
             return False, "failed"
+
+    def inspect(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "inspect", timeout=self._non_robot_actions_timeout
+        )
+        return result, msg
+
+    def update_pemu_server(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "update_pemu_server",
+            timeout=self._non_robot_actions_timeout,
+        )
+        if result:
+            self._env.pillow_is_in_box = False
+        return result, msg
 
     def empty_box(self, status: Status):
         self._env._krem_logging.wfhi_counter += 1

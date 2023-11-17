@@ -1,0 +1,28 @@
+---
+move_arm:
+  replanning: false
+  message: Could not move the arm.
+pick_pillow:
+  replanning: false
+  message: Could not pick up the Pillow.
+perceive_pillow:
+  replanning: false
+  message: Could not detect the Pillow.
+place_pillow_on_scale:
+  replanning: false
+  message: Could not place Pillow on scale.
+weigh_pillow:
+  replanning: false
+  message: Could not weigh Pillow.
+place_pillow_in_box:
+  replanning: false
+  message: Could not place Pillow in box.
+empty_box:
+  replanning: false
+  message: Emptying of Box failed.
+inspect:
+  replanning: false
+  message: No result received from inspection.
+update_pemu_server:
+  replanning: false
+  message: Could not update Server.

@@ -165,7 +165,8 @@ class AprilPlanDispatcher:
             self._plan_graph = self._domain.specific_domain.get_executable_graph(plan)
             return True
         else:
-            rospy.logerr("Could not find plan!")
+            msg = "Could not find plan!" if plan is None else "Plan is empty!"
+            rospy.logerr(msg)
             self._plan = None
             self._plan_graph = None
             return False

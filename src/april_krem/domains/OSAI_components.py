@@ -368,7 +368,7 @@ class Actions:
             return False, "failed"
 
     def place_case(self, case: Item, size: Size):
-        # arguments: [ID of case]
+        # arguments: [Type of case]
         if self._env.item_in_hand is not None:
             class_name, _ = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
