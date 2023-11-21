@@ -83,6 +83,18 @@ class Environment:
 
         self._perceived_objects.clear()
 
+    def reset_env_keep_counters(self) -> None:
+        self.holding_item = Item.nothing
+        self.arm_pose = ArmPose.unknown
+        self.item_in_hand = None
+
+        self.passport_perceived = False
+        self.used_mrz_reader = False
+        self.used_chip_reader = False
+        self.passport_status = None
+
+        self._perceived_objects.clear()
+
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
     ) -> ObjectsEstimatedPosesSrvResponse:

@@ -100,6 +100,21 @@ class Environment:
 
         self._perceived_objects.clear()
 
+    def reset_env_keep_counters(self) -> None:
+        self.item_at_location = {
+            Item.insole: Location.unknown,
+            Item.bag: Location.unknown,
+            Item.set: Location.unknown,
+            Item.nothing: Location.in_hand,
+        }
+        self.types_match = False
+        self.not_checked_types = True
+        self.set_released = False
+        self.bag_probably_open = False
+        self.bag_open = False
+
+        self._perceived_objects.clear()
+
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
     ) -> ObjectsEstimatedPosesSrvResponse:

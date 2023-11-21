@@ -147,7 +147,7 @@ class Environment:
 
         self._perceived_objects.clear()
 
-    def reset_env_keep_trays(self) -> None:
+    def reset_env_keep_counters(self) -> None:
         self.chicken_in_fov = False
         self.chicken_type = Item.chicken_part
         self.holding_item = Item.nothing

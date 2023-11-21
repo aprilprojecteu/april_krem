@@ -91,6 +91,20 @@ class Environment:
 
         self._perceived_objects.clear()
 
+    def reset_env_keep_counters(self) -> None:
+        self.holding_item = Item.nothing
+        self.arm_pose = ArmPose.unknown
+        self.item_in_hand = None
+
+        self.pillow_perceived = False
+        self.pillow_status = None
+        self.item_size = None
+        self.weighted_pillow = False
+        self.pillow_is_on_scale = False
+        self.pillow_is_in_box = False
+
+        self._perceived_objects.clear()
+
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
     ) -> ObjectsEstimatedPosesSrvResponse:

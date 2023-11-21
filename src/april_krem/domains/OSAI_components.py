@@ -110,6 +110,22 @@ class Environment:
 
         self._perceived_objects.clear()
 
+    def reset_env_keep_counters(self) -> None:
+        self.holding_item = Item.nothing
+        self.item_in_hand = None
+        self.arm_pose = ArmPose.unknown
+
+        self.case_available = False
+        self.placed_case = None
+        self.inserted = False
+        self.insert_perceived = False
+        self.set_perceived = False
+
+        self.item_size = None
+        self.set_status = None
+
+        self._perceived_objects.clear()
+
     def _object_poses_srv(
         self, request: ObjectsEstimatedPosesSrvRequest
     ) -> ObjectsEstimatedPosesSrvResponse:
@@ -292,9 +308,11 @@ class Actions:
 
     def pick_case(self, case: Item, size: Size):
         # arguments: [ID of case]
-        class_name, id = self._env._get_item_type_and_id(
-            self._env.item_size.value + "_case"
-        )
+        class_name = None
+        if self._env.item_size is not None:
+            class_name, id = self._env._get_item_type_and_id(
+                self._env.item_size.value + "_case"
+            )
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -309,12 +327,13 @@ class Actions:
                 self._env.case_available = False
                 self._env.arm_pose = ArmPose.unknown
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def pick_insert(self, insert: Item, size: Size):
         # arguments: [ID of insert]
-        class_name = "UC2_" + self._env.item_size.value + "_insert"
+        class_name = None
+        if self._env.item_size is not None:
+            class_name = "UC2_" + self._env.item_size.value + "_insert"
         if self._env.item_size == Size.small and self._env.small_insert_ids:
             id = self._env.small_insert_ids[0]
         elif self._env.item_size == Size.big and self._env.big_insert_ids:
@@ -339,14 +358,15 @@ class Actions:
                     self._env.big_insert_ids.pop(0)
                 self._env.insert_perceived = False
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def pick_set(self, set: Item):
         # arguments: [ID of set]
-        class_name, id = self._env._get_item_type_and_id(
-            self._env.item_size.value + "_set"
-        )
+        class_name = None
+        if self._env.item_size is not None:
+            class_name, id = self._env._get_item_type_and_id(
+                self._env.item_size.value + "_set"
+            )
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -364,8 +384,7 @@ class Actions:
                 self._env.set_perceived = False
                 self._env.placed_case = None
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def place_case(self, case: Item, size: Size):
         # arguments: [Type of case]
