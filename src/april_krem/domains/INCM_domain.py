@@ -51,7 +51,7 @@ class INCMDomain(Bridge):
         self.passport = self.objects[Item.passport.name]
 
         self.arm_poses = self.create_enum_objects(ArmPose)
-        self.unknown = self.objects[ArmPose.unknown.name]
+        self.unknown_pose = self.objects[ArmPose.unknown.name]
         self.over_passport = self.objects[ArmPose.over_passport.name]
         self.take_out_passport = self.objects[ArmPose.take_out_passport.name]
         self.over_mrz = self.objects[ArmPose.over_mrz.name]
@@ -89,7 +89,7 @@ class INCMDomain(Bridge):
             self.t_get_passport, self.get_passport_noop.passport
         )
         self.get_passport_noop.add_precondition(
-            Not(self.current_arm_pose(self.unknown))
+            Not(self.current_arm_pose(self.unknown_pose))
         )
         self.get_passport_noop.add_precondition(
             self.holding(self.get_passport_noop.passport)
@@ -103,7 +103,7 @@ class INCMDomain(Bridge):
             self.t_get_passport, self.get_passport_move_arm_1.passport
         )
         self.get_passport_move_arm_1.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.get_passport_move_arm_1.add_precondition(
             self.holding(self.get_passport_move_arm_1.passport)
@@ -166,7 +166,9 @@ class INCMDomain(Bridge):
         self.read_mrz_noop = Method("read_mrz_noop", passport=type_item)
         self.read_mrz_noop.set_task(self.t_read_mrz, self.read_mrz_noop.passport)
         self.read_mrz_noop.add_precondition(self.mrz_reader_used())
-        self.read_mrz_noop.add_precondition(Not(self.current_arm_pose(self.unknown)))
+        self.read_mrz_noop.add_precondition(
+            Not(self.current_arm_pose(self.unknown_pose))
+        )
         self.read_mrz_noop.add_precondition(self.holding(self.read_mrz_noop.passport))
 
         # already read mrz, move arm
@@ -175,7 +177,9 @@ class INCMDomain(Bridge):
             self.t_read_mrz, self.read_mrz_move_arm.passport
         )
         self.read_mrz_move_arm.add_precondition(self.mrz_reader_used())
-        self.read_mrz_move_arm.add_precondition(self.current_arm_pose(self.unknown))
+        self.read_mrz_move_arm.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.read_mrz_move_arm.add_precondition(
             self.holding(self.read_mrz_move_arm.passport)
         )
@@ -210,7 +214,9 @@ class INCMDomain(Bridge):
         self.read_chip_noop.set_task(self.t_read_chip, self.read_chip_noop.passport)
         self.read_chip_noop.add_precondition(self.chip_reader_used())
         self.read_chip_noop.add_precondition(self.mrz_reader_used())
-        self.read_chip_noop.add_precondition(Not(self.current_arm_pose(self.unknown)))
+        self.read_chip_noop.add_precondition(
+            Not(self.current_arm_pose(self.unknown_pose))
+        )
         self.read_chip_noop.add_precondition(self.holding(self.read_chip_noop.passport))
 
         # already read chip, move arm
@@ -220,7 +226,9 @@ class INCMDomain(Bridge):
         )
         self.read_chip_move_arm.add_precondition(self.chip_reader_used())
         self.read_chip_move_arm.add_precondition(self.mrz_reader_used())
-        self.read_chip_move_arm.add_precondition(self.current_arm_pose(self.unknown))
+        self.read_chip_move_arm.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.read_chip_move_arm.add_precondition(
             self.holding(self.read_chip_move_arm.passport)
         )
@@ -263,7 +271,7 @@ class INCMDomain(Bridge):
         )
         self.place_passport_move_arm.add_precondition(Not(self.passport_status_known()))
         self.place_passport_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.place_passport_move_arm.add_precondition(self.holding(self.nothing))
         self.place_passport_move_arm.add_subtask(self.move_arm, self.over_boxes)
@@ -421,7 +429,9 @@ class INCMDomain(Bridge):
             )
             self.pick_passport.add_effect(self.holding(p), True)
             self.pick_passport.add_effect(self.holding(self.nothing), False)
-            self.pick_passport.add_effect(self.current_arm_pose(self.unknown), True)
+            self.pick_passport.add_effect(
+                self.current_arm_pose(self.unknown_pose), True
+            )
             self.pick_passport.add_effect(
                 self.current_arm_pose(self.over_passport), False
             )
@@ -477,7 +487,7 @@ class INCMDomain(Bridge):
                 self.current_arm_pose(self.over_boxes), False
             )
             self.place_passport_in_box.add_effect(
-                self.current_arm_pose(self.unknown), True
+                self.current_arm_pose(self.unknown_pose), True
             )
             self.place_passport_in_box.add_effect(self.passport_status_known(), False)
 

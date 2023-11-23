@@ -71,7 +71,7 @@ class OSAIDomain(Bridge):
         self.nok = self.objects[Status.nok.name]
 
         self.arm_poses = self.create_enum_objects(ArmPose)
-        self.unknown = self.objects[ArmPose.unknown.name]
+        self.unknown_pose = self.objects[ArmPose.unknown.name]
         self.home = self.objects[ArmPose.home.name]
         self.over_conveyor = self.objects[ArmPose.over_conveyor.name]
         self.over_fixture = self.objects[ArmPose.over_fixture.name]
@@ -189,7 +189,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_1.add_precondition(self.case_is_placed())
         self.insertion_move_arm_1.add_precondition(self.inserted_insert())
-        self.insertion_move_arm_1.add_precondition(self.current_arm_pose(self.unknown))
+        self.insertion_move_arm_1.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_1.add_precondition(self.holding(self.nothing))
         s1 = self.insertion_move_arm_1.add_subtask(self.move_arm, self.over_fixture)
         s2 = self.insertion_move_arm_1.add_subtask(self.inspect)
@@ -266,7 +268,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_3.add_precondition(self.case_is_placed())
         self.insertion_move_arm_3.add_precondition(Not(self.inserted_insert()))
-        self.insertion_move_arm_3.add_precondition(self.current_arm_pose(self.unknown))
+        self.insertion_move_arm_3.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_3.add_precondition(
             self.holding(self.insertion_move_arm_3.insert)
         )
@@ -430,7 +434,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_5.add_precondition(self.case_is_placed())
         self.insertion_move_arm_5.add_precondition(Not(self.inserted_insert()))
-        self.insertion_move_arm_5.add_precondition(self.current_arm_pose(self.unknown))
+        self.insertion_move_arm_5.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_5.add_precondition(self.holding(self.nothing))
         self.insertion_move_arm_5.add_precondition(
             self.current_item_size(self.insertion_move_arm_5.size)
@@ -576,7 +582,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_7.add_precondition(Not(self.case_is_placed()))
         self.insertion_move_arm_7.add_precondition(Not(self.inserted_insert()))
-        self.insertion_move_arm_7.add_precondition(self.current_arm_pose(self.unknown))
+        self.insertion_move_arm_7.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_7.add_precondition(
             self.holding(self.insertion_move_arm_7.case)
         )
@@ -676,7 +684,9 @@ class OSAIDomain(Bridge):
         )
         self.place_set_move_arm_1.add_precondition(Not(self.set_status_known()))
         self.place_set_move_arm_1.add_precondition(self.holding(self.nothing))
-        self.place_set_move_arm_1.add_precondition(self.current_arm_pose(self.unknown))
+        self.place_set_move_arm_1.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.place_set_move_arm_1.add_subtask(self.move_arm, self.over_boxes)
 
         # set in hand, place in box
@@ -732,7 +742,9 @@ class OSAIDomain(Bridge):
         self.place_set_move_arm_3.add_precondition(
             self.holding(self.place_set_move_arm_3.set)
         )
-        self.place_set_move_arm_3.add_precondition(self.current_arm_pose(self.unknown))
+        self.place_set_move_arm_3.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.place_set_move_arm_3.add_precondition(
             self.space_in_box(self.place_set_move_arm_3.status)
         )
@@ -953,7 +965,7 @@ class OSAIDomain(Bridge):
             self.pick_case.add_precondition(self.current_arm_pose(self.over_conveyor))
             self.pick_case.add_effect(self.holding(c), True)
             self.pick_case.add_effect(self.holding(self.nothing), False)
-            self.pick_case.add_effect(self.current_arm_pose(self.unknown), True)
+            self.pick_case.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.pick_case.add_effect(self.item_in_fov(), False)
             self.pick_case.add_effect(self.current_arm_pose(self.over_conveyor), False)
 
@@ -968,7 +980,7 @@ class OSAIDomain(Bridge):
             self.pick_insert.add_precondition(self.perceived_insert())
             self.pick_insert.add_effect(self.holding(i), True)
             self.pick_insert.add_effect(self.holding(self.nothing), False)
-            self.pick_insert.add_effect(self.current_arm_pose(self.unknown), True)
+            self.pick_insert.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.pick_insert.add_effect(self.current_arm_pose(self.over_pallet), False)
 
             self.pick_set, [s] = self.create_action(
@@ -980,7 +992,7 @@ class OSAIDomain(Bridge):
             self.pick_set.add_precondition(self.current_arm_pose(self.over_fixture))
             self.pick_set.add_effect(self.holding(s), True)
             self.pick_set.add_effect(self.holding(self.nothing), False)
-            self.pick_set.add_effect(self.current_arm_pose(self.unknown), True)
+            self.pick_set.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.pick_set.add_effect(self.current_arm_pose(self.over_fixture), False)
             self.pick_set.add_effect(self.perceived_set(), False)
 
@@ -993,7 +1005,7 @@ class OSAIDomain(Bridge):
             self.place_case.add_precondition(self.current_arm_pose(self.over_fixture))
             self.place_case.add_precondition(Not(self.case_is_placed()))
             self.place_case.add_effect(self.holding(self.nothing), True)
-            self.place_case.add_effect(self.current_arm_pose(self.unknown), True)
+            self.place_case.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.place_case.add_effect(self.case_is_placed(), True)
             self.place_case.add_effect(self.current_arm_pose(self.over_fixture), False)
             self.place_case.add_effect(self.holding(c), False)
@@ -1012,7 +1024,9 @@ class OSAIDomain(Bridge):
             )
             self.place_set_in_box.add_precondition(self.holding(s))
             self.place_set_in_box.add_effect(self.holding(self.nothing), True)
-            self.place_set_in_box.add_effect(self.current_arm_pose(self.unknown), True)
+            self.place_set_in_box.add_effect(
+                self.current_arm_pose(self.unknown_pose), True
+            )
             self.place_set_in_box.add_effect(
                 self.current_arm_pose(self.over_boxes), False
             )
@@ -1041,7 +1055,7 @@ class OSAIDomain(Bridge):
             self.insert.add_precondition(self.current_arm_pose(self.over_fixture))
             self.insert.add_effect(self.holding(i), False)
             self.insert.add_effect(self.holding(self.nothing), True)
-            self.insert.add_effect(self.current_arm_pose(self.unknown), True)
+            self.insert.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.insert.add_effect(self.current_arm_pose(self.over_fixture), False)
             self.insert.add_effect(self.inserted_insert(), True)
 

@@ -64,7 +64,7 @@ class ASINDomain(Bridge):
         self.discard_tray = self.objects[Tray.discard_tray.name]
 
         self.arm_poses = self.create_enum_objects(ArmPose)
-        self.unknown_pose = self.objects[ArmPose.unknown_pose.name]
+        self.unknown_pose = self.objects[ArmPose.unknown.name]
         self.over_conveyor = self.objects[ArmPose.over_conveyor.name]
         self.over_tray = self.objects[ArmPose.over_tray.name]
 

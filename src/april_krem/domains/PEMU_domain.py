@@ -60,7 +60,7 @@ class PEMUDomain(Bridge):
         self.pillow = self.objects[Item.pillow.name]
 
         self.create_enum_objects(ArmPose)
-        self.unknown = self.objects[ArmPose.unknown.name]
+        self.unknown_pose = self.objects[ArmPose.unknown.name]
         self.over_table = self.objects[ArmPose.over_table.name]
         self.over_scale = self.objects[ArmPose.over_scale.name]
         self.over_boxes = self.objects[ArmPose.over_boxes.name]
@@ -144,7 +144,7 @@ class PEMUDomain(Bridge):
             self.t_pick_pillow, self.pick_pillow_from_table_move_arm.pillow
         )
         self.pick_pillow_from_table_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.pick_pillow_from_table_move_arm.add_precondition(
             self.holding(self.pick_pillow_from_table_move_arm.pillow)
@@ -183,7 +183,7 @@ class PEMUDomain(Bridge):
             self.t_pick_pillow, self.pick_pillow_from_scale_move_arm.pillow
         )
         self.pick_pillow_from_scale_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.pick_pillow_from_scale_move_arm.add_precondition(
             self.holding(self.pick_pillow_from_scale_move_arm.pillow)
@@ -254,7 +254,7 @@ class PEMUDomain(Bridge):
         )
         self.place_pillow_on_scale_move_arm.add_precondition(self.holding(self.nothing))
         self.place_pillow_on_scale_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.place_pillow_on_scale_move_arm.add_precondition(
             Not(self.pillow_weight_known())
@@ -368,7 +368,7 @@ class PEMUDomain(Bridge):
             self.t_place_pillow_in_box, self.place_pillow_in_box_move_arm.pillow
         )
         self.place_pillow_in_box_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.place_pillow_in_box_move_arm.add_precondition(self.holding(self.nothing))
         self.place_pillow_in_box_move_arm.add_precondition(self.pillow_in_box())
@@ -563,7 +563,7 @@ class PEMUDomain(Bridge):
             self.pick_pillow.add_precondition(self.current_item_size(s))
             self.pick_pillow.add_effect(self.holding(p), True)
             self.pick_pillow.add_effect(self.holding(self.nothing), False)
-            self.pick_pillow.add_effect(self.current_arm_pose(self.unknown), True)
+            self.pick_pillow.add_effect(self.current_arm_pose(self.unknown_pose), True)
             self.pick_pillow.add_effect(self.perceived_pillow(), False)
 
             self.place_pillow_on_scale, [p, s] = self.create_action(
@@ -581,7 +581,7 @@ class PEMUDomain(Bridge):
             self.place_pillow_on_scale.add_precondition(Not(self.pillow_weight_known()))
             self.place_pillow_on_scale.add_effect(self.holding(self.nothing), True)
             self.place_pillow_on_scale.add_effect(
-                self.current_arm_pose(self.unknown), True
+                self.current_arm_pose(self.unknown_pose), True
             )
             self.place_pillow_on_scale.add_effect(
                 self.current_arm_pose(self.over_scale), False
@@ -612,7 +612,7 @@ class PEMUDomain(Bridge):
             self.place_pillow_in_box.add_precondition(self.holding(p))
             self.place_pillow_in_box.add_effect(self.holding(self.nothing), True)
             self.place_pillow_in_box.add_effect(
-                self.current_arm_pose(self.unknown), True
+                self.current_arm_pose(self.unknown_pose), True
             )
             self.place_pillow_in_box.add_effect(
                 self.current_arm_pose(self.over_boxes), False

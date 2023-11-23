@@ -108,6 +108,9 @@ class Environment:
             Status.nok: 1,
         }
 
+        self.small_insert_ids = [11, 12, 13, 14, 15, 16]
+        self.big_insert_ids = [21, 22, 23, 24, 25, 26, 31, 32, 33, 34, 35, 36]
+
         self._perceived_objects.clear()
 
     def reset_env_keep_counters(self) -> None:
@@ -300,6 +303,11 @@ class Actions:
         elif arm_pose == ArmPose.over_boxes:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_boxes",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.home:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_to_home_pose",
                 timeout=self._robot_actions_timeout,
             )
         if result:

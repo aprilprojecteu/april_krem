@@ -29,11 +29,11 @@ class KREM_STATE(Enum):
     TIMEOUT = 4
     ERROR = 5
     FINISHED = 6
-    WAITING = 7
+    RESET = 7
+    HOME = 8
 
 
 class PlanDispatcher:
-
     STATE = KREM_STATE.START
     HICEM_ACTION_SERVER = actionlib.SimpleActionClient(
         "/hicem/run/symbolic_action", RunSymbolicActionAction
@@ -140,7 +140,11 @@ class PlanDispatcher:
                 self._plan_viz.succeed(self._node_id_to_action_map[succ_id])
                 executed_action_ids.append(succ_id)
 
-        if PlanDispatcher.STATE == KREM_STATE.CANCELED:
+        if PlanDispatcher.STATE in [
+            KREM_STATE.CANCELED,
+            KREM_STATE.RESET,
+            KREM_STATE.HOME,
+        ]:
             return False
 
         if execution_status != "executing":
@@ -158,7 +162,7 @@ class PlanDispatcher:
                     if not rospy.is_shutdown():
                         PlanDispatcher.KREM_LOGGING.wfhi_counter += 1
                     wait_for_human_intervention_result = (
-                        self.wait_for_human_intervention(message)
+                        self.wait_for_human_intervention_action(message)
                     )
                     if wait_for_human_intervention_result:
                         self.change_state(KREM_STATE.ACTIVE)
@@ -200,63 +204,76 @@ class PlanDispatcher:
         else:
             raise NotImplementedError("Plan type not supported")
 
-    def wait_for_human_intervention(self, display_message: str = ""):
-        PlanDispatcher.change_state(KREM_STATE.WAITING)
+    def wait_for_human_intervention_action(self, display_message: str = "") -> bool:
         result, _ = self.run_symbolic_action(
             "wait_for_human_intervention", [display_message]
         )
         return result
 
     @classmethod
+    def wait_for_human_intervention_message(cls, display_message: str = "") -> None:
+        wait_for_human_intervention_goal_msg = RunSymbolicActionGoal(
+            action_type="wait_for_human_intervention",
+            action_arguments=[display_message],
+            grasp_facts=[],
+        )
+        cls.HICEM_ACTION_SERVER.send_goal(wait_for_human_intervention_goal_msg)
+
+    @classmethod
+    def arm_to_home_pose_action(cls) -> bool:
+        home_pose_action_msg = RunSymbolicActionGoal(
+            action_type="move_to_home_pose",
+            action_arguments=[],
+            grasp_facts=[],
+        )
+
+        rospy.loginfo(
+            '\033[92mDispatcherROS: Dispatching action "move_to_home_pose"\033[0m'
+        )
+
+        cls.HICEM_ACTION_SERVER.send_goal(home_pose_action_msg)
+        rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            if cls.HICEM_ACTION_SERVER.get_result():
+                # result received
+                home_result = cls.HICEM_ACTION_SERVER.get_result()
+                if home_result.success:
+                    cls.wait_for_human_intervention_message(
+                        "Scenario is reset, Arm in home pose. Press continue to restart Scenario."
+                    )
+                    return True
+                else:
+                    cls.wait_for_human_intervention_message(
+                        "Moving arm to home pose failed."
+                    )
+                    return False
+            rate.sleep()
+
+    @classmethod
     def change_state(cls, state):
         # only change state if in a different state
         if cls.STATE != state:
             if state == KREM_STATE.ACTIVE:
-                cls._before_active()
                 cls.STATE = state
             elif state == KREM_STATE.PAUSED:
-                cls._before_paused()
                 cls.STATE = state
             elif state == KREM_STATE.CANCELED:
-                cls._before_canceled()
+                cls.HICEM_ACTION_SERVER.cancel_all_goals()
                 cls.STATE = state
             elif state == KREM_STATE.TIMEOUT:
-                cls._before_timeout()
                 cls.STATE = state
             elif state == KREM_STATE.ERROR:
-                cls._before_error()
                 cls.STATE = state
             elif state == KREM_STATE.FINISHED:
-                cls._before_finished()
                 cls.STATE = state
-            elif state == KREM_STATE.WAITING:
+            elif state == KREM_STATE.RESET:
+                cls.HICEM_ACTION_SERVER.cancel_all_goals()
+                cls.STATE = state
+            elif state == KREM_STATE.HOME:
+                cls.HICEM_ACTION_SERVER.cancel_all_goals()
                 cls.STATE = state
             else:
                 raise RuntimeError(f"Tried to change to unknown state: {state}!")
-
-    @classmethod
-    def _before_active(cls) -> None:
-        pass
-
-    @classmethod
-    def _before_paused(cls) -> None:
-        pass
-
-    @classmethod
-    def _before_canceled(cls) -> None:
-        cls.HICEM_ACTION_SERVER.cancel_all_goals()
-
-    @classmethod
-    def _before_timeout(cls) -> None:
-        pass
-
-    @classmethod
-    def _before_error(cls) -> None:
-        pass
-
-    @classmethod
-    def _before_finished(cls) -> None:
-        pass
 
     @classmethod
     def run_symbolic_action(
@@ -292,13 +309,21 @@ class PlanDispatcher:
                     cls.HICEM_ACTION_SERVER.cancel_all_goals()
                     # status is paused
                     _action_status = "PAUSED"
+                    rate.sleep()
+                    # send wait for human intervention action to HICEM
+                    cls.wait_for_human_intervention_message(
+                        "Press continue to restart action."
+                    )
+
                 # Wait for unpause
                 rate.sleep()
             else:
                 if cls.STATE in [
-                    KREM_STATE.CANCELED,
                     KREM_STATE.ERROR,
                     KREM_STATE.TIMEOUT,
+                    KREM_STATE.RESET,
+                    KREM_STATE.CANCELED,
+                    KREM_STATE.HOME,
                 ]:
                     break
                 # Only execute after a pause

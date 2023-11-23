@@ -31,7 +31,8 @@ class Tray(Enum):
 
 
 class ArmPose(Enum):
-    unknown_pose = "unknown_pose"
+    unknown = "unknown"
+    home = "home"
     over_conveyor = "over_conveyor"
     over_tray = "over_tray"
 
@@ -65,7 +66,7 @@ class Environment:
             Tray.discard_tray: False,
         }
         self.perceived_trays = False
-        self.arm_pose = ArmPose.unknown_pose
+        self.arm_pose = ArmPose.unknown
         self.cb_moving = False
 
         self._perceived_objects = {}
@@ -142,7 +143,7 @@ class Environment:
             Tray.discard_tray: False,
         }
         self.perceived_trays = False
-        self.arm_pose = ArmPose.unknown_pose
+        self.arm_pose = ArmPose.unknown
         self.cb_moving = False
 
         self._perceived_objects.clear()
@@ -153,7 +154,7 @@ class Environment:
         self.holding_item = Item.nothing
         self.tray_place = None
         self.perceived_trays = False
-        self.arm_pose = ArmPose.unknown_pose
+        self.arm_pose = ArmPose.unknown
         self.cb_moving = False
 
         self._perceived_objects.clear()
@@ -346,6 +347,11 @@ class Actions:
                 "move_over_tray_cart",
                 timeout=self._robot_actions_timeout,
             )
+        elif arm_pose == ArmPose.home:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_to_home_pose",
+                timeout=self._robot_actions_timeout,
+            )
         if result:
             self._env.arm_pose = arm_pose
         return result, msg
@@ -364,7 +370,7 @@ class Actions:
             if result:
                 self._env.holding_item = self._env.chicken_type
                 self._env.chicken_in_fov = False
-                self._env.arm_pose = ArmPose.unknown_pose
+                self._env.arm_pose = ArmPose.unknown
             return result, msg
         else:
             return False
@@ -404,7 +410,7 @@ class Actions:
             self._env.perceived_trays = False
             self._env.chicken_type = Item.chicken_part
             self._env.tray_place = None
-            self._env.arm_pose = ArmPose.unknown_pose
+            self._env.arm_pose = ArmPose.unknown
             if chicken in [Item.breast, Item.drumstick]:
                 self._env.num_chicken_in_tray[tray] += 1
                 self._env.type_chicken_in_tray[tray] = chicken

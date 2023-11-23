@@ -60,23 +60,26 @@ class AprilPlanDispatcher:
         )
 
     def _gesture_backup_button_cb(self, msg: GestureBackupButtonStates):
-        # VALIDATE
+        # RESET
         if msg.gesture_backup_button_state_0:
-            if self._domain._use_case == "uc1":
-                rospy.logwarn("Gesture Backup Button 0 pressed! Validate!")
-                PlanDispatcher.change_state(KREM_STATE.CANCELED)
-                rospy.sleep(1)
-                if self._domain is not None:
-                    self._domain.specific_domain._env.reset_env_keep_trays()
-                PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-        # CANCEL
-        if msg.gesture_backup_button_state_1:
-            rospy.logwarn(
-                "Gesture Backup Button 1 pressed! Canceling action execution."
-            )
-            PlanDispatcher.change_state(KREM_STATE.CANCELED)
+            rospy.logwarn("Gesture Backup Button 0 pressed! Reset Scenario!")
+            PlanDispatcher.change_state(KREM_STATE.RESET)
+            rospy.sleep(1)
             if self._domain is not None:
                 self._domain.specific_domain._env.reset_env()
+            PlanDispatcher.wait_for_human_intervention_message(
+                "Press continue to reset scenario."
+            )
+        # CANCEL
+        elif msg.gesture_backup_button_state_1:
+            rospy.logwarn("Gesture Backup Button 1 pressed! Restart cycle!")
+            PlanDispatcher.change_state(KREM_STATE.CANCELED)
+            rospy.sleep(1)
+            if self._domain is not None:
+                self._domain.specific_domain._env.reset_env_keep_counters()
+            PlanDispatcher.wait_for_human_intervention_message(
+                "Press continue to reset cycle."
+            )
         # STOP
         elif msg.gesture_backup_button_state_2:
             rospy.logwarn("Gesture Backup Button 2 pressed! Pausing action execution.")
@@ -88,15 +91,23 @@ class AprilPlanDispatcher:
         # RETRIEVE
         if msg.gesture_backup_button_state_4:
             pass
-        # UNUSED
+        # VALIDATE
         if msg.gesture_backup_button_state_5:
             pass
-        # UNUSED
+        # RESET SEEH (used by UPM)
         if msg.gesture_backup_button_state_6:
             pass
-        # HOME?
+        # HOME
         if msg.gesture_backup_button_state_7:
-            pass
+            rospy.logwarn(
+                "Gesture Backup Button 7 pressed! Return arm to home pose and reset scenario!"
+            )
+            PlanDispatcher.change_state(KREM_STATE.HOME)
+            rospy.sleep(1)
+            if self._domain is not None:
+                self._domain.specific_domain._env.reset_env()
+            result = PlanDispatcher.arm_to_home_pose_action()
+            rospy.loginfo(f"Arm moved to home pose with result: {result}")
 
     def _gesture_cb(self, msg: PersonGesturesList):
         # TODO Use complete list
@@ -222,10 +233,11 @@ def main():
             if not plan_found:
                 dispatcher._domain.specific_domain._env.reset_env()
                 continue
-            result = dispatcher.execute()
-            rospy.loginfo(
-                "DispatcherROS: Dispatcher finished with result " + str(result)
-            )
+            if PlanDispatcher.STATE == KREM_STATE.ACTIVE:
+                result = dispatcher.execute()
+                rospy.loginfo(
+                    "DispatcherROS: Dispatcher finished with result " + str(result)
+                )
         elif PlanDispatcher.STATE == KREM_STATE.PAUSED:
             pass
         elif PlanDispatcher.STATE == KREM_STATE.CANCELED:
@@ -244,8 +256,6 @@ def main():
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
             rospy.sleep(1)
         elif PlanDispatcher.STATE == KREM_STATE.ERROR:
-            pass
-        elif PlanDispatcher.STATE == KREM_STATE.WAITING:
             pass
         rate.sleep()
 
