@@ -238,14 +238,8 @@ class PlanDispatcher:
                 # result received
                 home_result = cls.HICEM_ACTION_SERVER.get_result()
                 if home_result.success:
-                    cls.wait_for_human_intervention_message(
-                        "Scenario is reset, Arm in home pose. Press continue to restart Scenario."
-                    )
                     return True
                 else:
-                    cls.wait_for_human_intervention_message(
-                        "Moving arm to home pose failed."
-                    )
                     return False
             rate.sleep()
 
