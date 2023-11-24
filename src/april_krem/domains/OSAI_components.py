@@ -438,11 +438,6 @@ class Actions:
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
                 self._env.box_status[self._env.set_status] += 1
-                self._env.set_status = None
-                self._env.inserted = False
-                self._env.item_size = None
-                self._env._krem_logging.cycle_complete = True
-                self._env._perceived_objects.clear()
             return result, msg
         else:
             return False, "failed"
@@ -468,6 +463,22 @@ class Actions:
         result, msg = PlanDispatcher.run_symbolic_action(
             "inspect", timeout=self._non_robot_actions_timeout
         )
+        return result, msg
+
+    def move_arm_end(self):
+        result = False
+        msg = "failed"
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "move_over_boxes",
+            timeout=self._robot_actions_timeout,
+        )
+        if result:
+            self._env.arm_pose = ArmPose.over_boxes
+            self._env.set_status = None
+            self._env.inserted = False
+            self._env.item_size = None
+            self._env._krem_logging.cycle_complete = True
+            self._env._perceived_objects.clear()
         return result, msg
 
     def restock_inserts(self, size: Size):

@@ -885,10 +885,10 @@ class OSAIDomain(Bridge):
         self.place_set_move_arm_1.set_task(
             self.t_place_set, self.place_set_move_arm_1.set
         )
-        self.place_set_move_arm_1.add_precondition(Not(self.set_status_known()))
+        self.place_set_move_arm_1.add_precondition(self.set_status_known())
         self.place_set_move_arm_1.add_precondition(self.holding(self.nothing))
         self.place_set_move_arm_1.add_precondition(self.current_arm_pose(self.arm_up))
-        self.place_set_move_arm_1.add_subtask(self.move_arm, self.over_boxes)
+        self.place_set_move_arm_1.add_subtask(self.move_arm_end)
 
         # set already placed, move arm up and over boxes
         self.place_set_move_arm_4 = Method(
@@ -897,13 +897,13 @@ class OSAIDomain(Bridge):
         self.place_set_move_arm_4.set_task(
             self.t_place_set, self.place_set_move_arm_4.set
         )
-        self.place_set_move_arm_4.add_precondition(Not(self.set_status_known()))
+        self.place_set_move_arm_4.add_precondition(self.set_status_known())
         self.place_set_move_arm_4.add_precondition(self.holding(self.nothing))
         self.place_set_move_arm_4.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
         s1 = self.place_set_move_arm_4.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.place_set_move_arm_4.add_subtask(self.move_arm, self.over_boxes)
+        s2 = self.place_set_move_arm_4.add_subtask(self.move_arm_end)
         self.place_set_move_arm_4.set_ordered(s1, s2)
 
         # set in hand, place in box
@@ -919,7 +919,7 @@ class OSAIDomain(Bridge):
             self.place_set_in_box, self.place_set_box.set, self.place_set_box.status
         )
         s2 = self.place_set_box.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.place_set_box.add_subtask(self.move_arm, self.over_boxes)
+        s3 = self.place_set_box.add_subtask(self.move_arm_end)
         self.place_set_box.set_ordered(s1, s2, s3)
 
         # set in hand, move arm over boxes and place
@@ -946,7 +946,7 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_2.status,
         )
         s3 = self.place_set_move_arm_2.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.place_set_move_arm_2.add_subtask(self.move_arm, self.over_boxes)
+        s4 = self.place_set_move_arm_2.add_subtask(self.move_arm_end)
         self.place_set_move_arm_2.set_ordered(s1, s2, s3, s4)
 
         # set in hand, move arm over fixture, then over boxes and place
@@ -972,7 +972,7 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_3.status,
         )
         s4 = self.place_set_move_arm_3.add_subtask(self.move_arm, self.arm_up)
-        s5 = self.place_set_move_arm_3.add_subtask(self.move_arm, self.over_boxes)
+        s5 = self.place_set_move_arm_3.add_subtask(self.move_arm_end)
         self.place_set_move_arm_3.set_ordered(s1, s2, s3, s4, s5)
 
         # set in hand, move arm up, then over fixture, then over boxes and place
@@ -1001,7 +1001,7 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_5.status,
         )
         s5 = self.place_set_move_arm_5.add_subtask(self.move_arm, self.arm_up)
-        s6 = self.place_set_move_arm_5.add_subtask(self.move_arm, self.over_boxes)
+        s6 = self.place_set_move_arm_5.add_subtask(self.move_arm_end)
         self.place_set_move_arm_5.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # pick and place set
@@ -1024,7 +1024,7 @@ class OSAIDomain(Bridge):
             self.place_set_in_box, self.place_set_full.set, self.place_set_full.status
         )
         s6 = self.place_set_full.add_subtask(self.move_arm, self.arm_up)
-        s7 = self.place_set_full.add_subtask(self.move_arm, self.over_boxes)
+        s7 = self.place_set_full.add_subtask(self.move_arm_end)
         self.place_set_full.set_ordered(s1, s2, s3, s4, s5, s6, s7)
 
         # box is full
@@ -1209,6 +1209,12 @@ class OSAIDomain(Bridge):
             )
             self.move_arm.add_effect(self.current_arm_pose(a), True)
 
+            self.move_arm_end, _ = self.create_action(
+                "move_arm_end", _callable=actions.move_arm_end
+            )
+            self.move_arm_end.add_effect(self.current_arm_pose(self.over_boxes), True)
+            self.move_arm_end.add_effect(self.set_status_known(), False)
+
             self.pick_case, [c, s] = self.create_action(
                 "pick_case", case=Item, size=Size, _callable=actions.pick_case
             )
@@ -1285,7 +1291,6 @@ class OSAIDomain(Bridge):
                 self.current_arm_pose(self.over_boxes), False
             )
             self.place_set_in_box.add_effect(self.holding(s), False)
-            self.place_set_in_box.add_effect(self.set_status_known(), False)
 
             self.empty_box, [st] = self.create_action(
                 "empty_box",
