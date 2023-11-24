@@ -24,6 +24,7 @@ class Item(Enum):
 class ArmPose(Enum):
     unknown = "unknown"
     home = "home"
+    arm_up = "arm_up"
     over_conveyor = "over_conveyor"
     over_fixture = "over_fixture"
     over_pallet = "over_pallet"
@@ -310,6 +311,11 @@ class Actions:
         elif arm_pose == ArmPose.home:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_to_home_pose",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.arm_up:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_arm_up",
                 timeout=self._robot_actions_timeout,
             )
         if result:
