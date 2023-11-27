@@ -18,7 +18,6 @@ from april_krem.plan_dispatcher import PlanDispatcher
 
 class Item(Enum):
     nothing = "nothing"
-    chicken_part = "chicken_part"
     breast = "breast"
     drumstick = "drumstick"
 
@@ -56,7 +55,7 @@ class Environment:
         }
 
         self.chicken_in_fov = False
-        self.chicken_type = Item.chicken_part
+        self.chicken_type = None
         self.holding_item = Item.nothing
         self.tray_place = None
         self.tray_available = {
@@ -85,38 +84,6 @@ class Environment:
             self._chicken_shelf_life_srv,
         )
 
-    def __str__(self) -> str:
-        num_chicken_in_tray_str = "\n".join(
-            [
-                f'- "{k.value}" contains "{v}"'
-                for k, v in self.num_chicken_in_tray.items()
-            ]
-        )
-        type_chicken_in_tray_str = "\n".join(
-            [
-                f'- "{k.value}" contains "v"'
-                for k, v in self.type_chicken_in_tray.items()
-            ]
-        )
-        tray_available_str = "\n".join(
-            [f'- "{k.value}" available "{v}"' for k, v in self.tray_available.items()]
-        )
-        perceived_objects_str = "\n".join(
-            [f'- "{k}"' for k in self._perceived_objects.keys()]
-        )
-        return (
-            f"Chicken count: \n{num_chicken_in_tray_str}\n"
-            f"Type chicken in tray: \n{type_chicken_in_tray_str}\n"
-            f"Chicken type: {self.chicken_type.value}\n"
-            f"Holding: {self.holding_item.value}\n"
-            f"Chicken in FOV: {self.chicken_in_fov}\n"
-            f"Tray to place: {self.tray_place.name} with ID {self.tray_place.value}\n"
-            f"Trays available: \n{tray_available_str}\n"
-            f"Perceived trays: {self.perceived_trays}\n"
-            f"Arm Pose: {self.arm_pose.value}\n"
-            f"Perceived objects:\n {perceived_objects_str}"
-        )
-
     def reset_env(self) -> None:
         self.num_chicken_in_tray = {
             Tray.high_tray: 0,
@@ -133,7 +100,7 @@ class Environment:
         }
 
         self.chicken_in_fov = False
-        self.chicken_type = Item.chicken_part
+        self.chicken_type = None
         self.holding_item = Item.nothing
         self.tray_place = None
         self.tray_available = {
@@ -150,7 +117,7 @@ class Environment:
 
     def reset_env_keep_counters(self) -> None:
         self.chicken_in_fov = False
-        self.chicken_type = Item.chicken_part
+        self.chicken_type = None
         self.holding_item = Item.nothing
         self.tray_place = None
         self.perceived_trays = False
@@ -163,7 +130,7 @@ class Environment:
         counter = self.num_chicken_in_tray.get(tray, None)
         type_in_tray = self.type_chicken_in_tray.get(tray, None)
         if counter is not None and type_in_tray is not None:
-            if chicken_part in [Item.nothing, Item.chicken_part]:
+            if chicken_part == Item.nothing:
                 return True
             elif type_in_tray == Item.nothing:
                 return True
@@ -237,14 +204,10 @@ class Environment:
         return self.holding_item == item
 
     def item_type_is_known(self) -> bool:
-        return self.chicken_type != Item.chicken_part
+        return self.chicken_type is not None
 
     def chicken_to_pick(self, item: Item) -> bool:
-        return (
-            self.chicken_type == item
-            if item not in [Item.chicken_part, Item.nothing]
-            else False
-        )
+        return self.chicken_type == item if item != Item.nothing else False
 
     def item_in_fov(self) -> bool:
         return self.chicken_in_fov
@@ -332,7 +295,7 @@ class Actions:
             elif type is not None and "breast" in type:
                 self._env.chicken_type = Item.breast
             else:
-                self._env.chicken_type = Item.chicken_part
+                self._env.chicken_type = None
                 return False
         return result, msg
 
@@ -409,8 +372,6 @@ class Actions:
             return False, "failed"
         if result:
             self._env.holding_item = Item.nothing
-            self._env.perceived_trays = False
-            self._env.chicken_type = Item.chicken_part
             self._env.tray_place = None
             self._env.arm_pose = ArmPose.unknown
             if chicken in [Item.breast, Item.drumstick]:
@@ -418,6 +379,22 @@ class Actions:
                 self._env.type_chicken_in_tray[tray] = chicken
             else:
                 return False, "failed"
+            self._env._krem_logging.cycle_complete = True
+            self._env._perceived_objects.clear()
+        return result, msg
+
+    def move_arm_end(self):
+        result = False
+        msg = "failed"
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "move_over_tray_cart",
+            timeout=self._robot_actions_timeout,
+        )
+        if result:
+            self._env.arm_pose = ArmPose.over_tray
+            self._env.perceived_trays = False
+            self._env.chicken_type = None
+
             self._env._krem_logging.cycle_complete = True
             self._env._perceived_objects.clear()
         return result, msg
