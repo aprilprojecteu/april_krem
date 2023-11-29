@@ -2,9 +2,12 @@
 get_next_case:
   replanning: false
   message: Put case on conveyor belt.
-perceive_case:
+perceive_case_on_conveyor:
   replanning: false
   message: No Case detected on conveyor belt.
+perceive_case_on_fixture:
+  replanning: false
+  message: No Case detected on fixture.
 move_arm:
   replanning: false
   message: Could not move the arm.
