@@ -58,6 +58,12 @@ class OSAIDomain(Bridge):
         )
         self.space_in_box = self.create_fluent_from_function(self._env.space_in_box)
 
+        # sensed facts
+        self.conveyor_ready = self.create_fluent_from_function(self._env.conveyor_ready)
+        self.inspection_ready = self.create_fluent_from_function(
+            self._env.inspection_ready
+        )
+
         # Create objects for both planning and execution
         self.items = self.create_enum_objects(Item)
         self.nothing = self.objects[Item.nothing.name]
@@ -1111,6 +1117,29 @@ class OSAIDomain(Bridge):
             self.assemble_set_restock.size,
         )
 
+        self.m_change_conveyor_state = Method(
+            "m_change_conveyor_state",
+            case=type_item,
+        )
+        self.m_change_conveyor_state.set_task(
+            self.t_get_case, self.m_change_conveyor_state.case
+        )
+        self.m_change_conveyor_state.add_precondition(Not(self.conveyor_ready()))
+        self.m_change_conveyor_state.add_subtask(self.change_conveyor_status)
+
+        self.m_change_inspection_state = Method(
+            "m_change_inspection_state",
+            case=type_item,
+            insert=type_item,
+        )
+        self.m_change_inspection_state.set_task(
+            self.t_insertion,
+            self.m_change_inspection_state.case,
+            self.m_change_inspection_state.insert,
+        )
+        self.m_change_inspection_state.add_precondition(Not(self.inspection_ready()))
+        self.m_change_inspection_state.add_subtask(self.change_inspection_status)
+
         self.methods = (
             self.get_case_noop,
             self.get_case_perceive,
@@ -1145,6 +1174,8 @@ class OSAIDomain(Bridge):
             self.assemble_set_insert,
             self.assemble_set_place,
             self.assemble_set_restock,
+            self.m_change_conveyor_state,
+            self.m_change_inspection_state,
         )
 
     def _create_domain_actions(self, temporal: bool = False) -> None:
@@ -1159,6 +1190,7 @@ class OSAIDomain(Bridge):
                 _callable=actions.get_next_case,
             )
             self.get_next_case.add_precondition(Not(self.item_in_fov()))
+            self.get_next_case.add_precondition(self.conveyor_ready())
             self.get_next_case.add_effect(self.item_in_fov(), True)
 
             self.perceive_case_on_conveyor, _ = self.create_action(
@@ -1316,6 +1348,7 @@ class OSAIDomain(Bridge):
             self.inspect, _ = self.create_action("inspect", _callable=actions.inspect)
             self.inspect.add_precondition(Not(self.set_status_known()))
             self.inspect.add_precondition(self.current_arm_pose(self.over_fixture))
+            self.inspect.add_precondition(self.inspection_ready())
             self.inspect.add_effect(self.set_status_known(), True)
 
             self.restock_inserts, [s] = self.create_action(
@@ -1325,6 +1358,18 @@ class OSAIDomain(Bridge):
             self.restock_inserts.add_precondition(self.current_item_size(s))
             self.restock_inserts.add_precondition(Not(self.inserts_available(s)))
             self.restock_inserts.add_effect(self.inserts_available(s), True)
+
+            self.change_conveyor_status, _ = self.create_action(
+                "change_conveyor_status", _callable=actions.change_conveyor_status
+            )
+            self.change_conveyor_status.add_precondition(Not(self.conveyor_ready()))
+            self.change_conveyor_status.add_effect(self.conveyor_ready(), True)
+
+            self.change_inspection_status, _ = self.create_action(
+                "change_inspection_status", _callable=actions.change_inspection_status
+            )
+            self.change_inspection_status.add_precondition(Not(self.inspection_ready()))
+            self.change_inspection_status.add_effect(self.inspection_ready(), True)
 
     def set_state_and_goal(self, problem, goal=None) -> None:
         success = True

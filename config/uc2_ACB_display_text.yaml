@@ -38,3 +38,9 @@ pick_set:
 place_set_in_box:
   replanning: false
   message: Could not place Set in box.
+change_conveyor_status:
+  replanning: true
+  message: Conveyor still not in AUTO_WORK state.
+change_inspection_status:
+  replanning: true
+  message: Inspection tool still not in AUTO_WORK state.

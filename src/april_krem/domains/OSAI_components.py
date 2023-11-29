@@ -1,7 +1,9 @@
+import os
 from typing import Tuple
 from enum import Enum
 
 import rospy
+import rospkg
 
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
 from april_msgs.srv import (
@@ -12,6 +14,10 @@ from april_msgs.srv import (
 )
 
 from april_krem.plan_dispatcher import PlanDispatcher
+
+from symbolic_fact_generation.fact_generation_with_config import (
+    FactGenerationWithConfig,
+)
 
 
 class Item(Enum):
@@ -44,6 +50,16 @@ class Status(Enum):
 class Environment:
     def __init__(self, krem_logging):
         self._krem_logging = krem_logging
+
+        use_case = rospy.get_param("use_case", default="uc2")
+        facts_config_file = use_case + "_facts_config.yaml"
+        facts_config_path = os.path.join(
+            rospkg.RosPack().get_path("symbolic_fact_generation_use_cases"),
+            "config",
+            facts_config_file,
+        )
+
+        self._fact_generator = FactGenerationWithConfig(facts_config_path)
 
         self.holding_item = Item.nothing
         self.item_in_hand = None
@@ -79,16 +95,6 @@ class Environment:
             "/hicem/sfg/quality_control/result",
             SetBool,
             self._set_inspection_result_srv,
-        )
-
-    def __str__(self) -> str:
-        perceived_objects_str = "\n".join(
-            [f'- "{k}"' for k in self._perceived_objects.keys()]
-        )
-        return (
-            f"Holding: {self.holding_item.value}\n"
-            f"Arm Pose: {self.arm_pose.value}\n"
-            f"Perceived objects:\n {perceived_objects_str}"
         )
 
     def reset_env(self) -> None:
@@ -226,6 +232,24 @@ class Environment:
 
     def perceived_case_on_fixture(self) -> bool:
         return self.case_on_fixture_perceived
+
+    def conveyor_ready(self) -> bool:
+        facts = self._fact_generator.generate_facts_with_name("conveyor_ready")
+        if facts[0].values[0]:
+            return True
+        elif not facts[0].values[0]:
+            return False
+        else:
+            return False
+
+    def inspection_ready(self) -> bool:
+        facts = self._fact_generator.generate_facts_with_name("inspection_ready")
+        if facts[0].values[0]:
+            return True
+        elif not facts[0].values[0]:
+            return False
+        else:
+            return False
 
 
 class Actions:
@@ -540,4 +564,22 @@ class Actions:
         )
         if result:
             self._env.box_status[status] = 1
+        return result, msg
+
+    def change_conveyor_status(self):
+        self._env._krem_logging.wfhi_counter += 1
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "wait_for_human_intervention",
+            ["Conveyor belt not in AUTO_WORK state."],
+            timeout=0.0,
+        )
+        return result, msg
+
+    def change_inspection_status(self):
+        self._env._krem_logging.wfhi_counter += 1
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "wait_for_human_intervention",
+            ["Inspection tool not in AUTO_WORK state."],
+            timeout=0.0,
+        )
         return result, msg
