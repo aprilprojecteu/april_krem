@@ -234,8 +234,11 @@ def main():
             f"[DONE] {krem_logging.cycle_counter} Cycles completed after "
             f"{krem_logging.overall_cycle_time} seconds."
         )
+        krem_logging.separate_logs()
 
     rospy.on_shutdown(logging_hook)
+
+    krem_logging.log_info("KREM started!")
 
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():

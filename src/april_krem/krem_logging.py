@@ -34,3 +34,6 @@ class KREMLogging:
         self.krem_logger.critical(msg)
         self._log_pub.publish(msg)
         print(msg)
+
+    def separate_logs(self):
+        self.krem_logger.critical("\n")
