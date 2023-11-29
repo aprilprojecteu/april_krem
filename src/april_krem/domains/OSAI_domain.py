@@ -41,6 +41,9 @@ class OSAIDomain(Bridge):
         self.perceived_insert = self.create_fluent_from_function(
             self._env.perceived_insert
         )
+        self.perceived_case_on_fixture = self.create_fluent_from_function(
+            self._env.perceived_case_on_fixture
+        )
         self.perceived_set = self.create_fluent_from_function(self._env.perceived_set)
         self.item_in_fov = self.create_fluent_from_function(self._env.item_in_fov)
         self.set_status_known = self.create_fluent_from_function(
@@ -112,14 +115,14 @@ class OSAIDomain(Bridge):
         self.get_case_perceive.add_precondition(
             self.current_arm_pose(self.over_conveyor)
         )
-        self.get_case_perceive.add_subtask(self.perceive_case)
+        self.get_case_perceive.add_subtask(self.perceive_case_on_conveyor)
 
         # arm in position, wait for case and perceive
         self.get_case_wait = Method("get_case_wait", case=type_item)
         self.get_case_wait.set_task(self.t_get_case, self.get_case_wait.case)
         self.get_case_wait.add_precondition(self.current_arm_pose(self.over_conveyor))
         s1 = self.get_case_wait.add_subtask(self.get_next_case)
-        s2 = self.get_case_wait.add_subtask(self.perceive_case)
+        s2 = self.get_case_wait.add_subtask(self.perceive_case_on_conveyor)
         self.get_case_wait.set_ordered(s1, s2)
 
         # move arm to conveyor, wait for case, perceive case
@@ -129,7 +132,7 @@ class OSAIDomain(Bridge):
         self.get_case_full.add_precondition(Not(self.item_size_known()))
         s1 = self.get_case_full.add_subtask(self.move_arm, self.over_conveyor)
         s2 = self.get_case_full.add_subtask(self.get_next_case)
-        s3 = self.get_case_full.add_subtask(self.perceive_case)
+        s3 = self.get_case_full.add_subtask(self.perceive_case_on_conveyor)
         self.get_case_full.set_ordered(s1, s2, s3)
 
         # INSERTION
@@ -190,33 +193,17 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_8.add_precondition(self.case_is_placed())
         self.insertion_move_arm_8.add_precondition(self.inserted_insert())
-        self.insertion_move_arm_8.add_precondition(self.current_arm_pose(self.arm_up))
+        self.insertion_move_arm_8.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_8.add_precondition(self.holding(self.nothing))
+        self.insertion_move_arm_8.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         s1 = self.insertion_move_arm_8.add_subtask(self.move_arm, self.over_fixture)
         s2 = self.insertion_move_arm_8.add_subtask(self.inspect)
         s3 = self.insertion_move_arm_8.add_subtask(self.perceive_set)
         self.insertion_move_arm_8.set_ordered(s1, s2, s3)
-
-        # already inserted, move arm out of way, inspect, perceive
-        self.insertion_move_arm_1 = Method(
-            "insertion_move_arm_1", case=type_item, insert=type_item
-        )
-        self.insertion_move_arm_1.set_task(
-            self.t_insertion,
-            self.insertion_move_arm_1.case,
-            self.insertion_move_arm_1.insert,
-        )
-        self.insertion_move_arm_1.add_precondition(self.case_is_placed())
-        self.insertion_move_arm_1.add_precondition(self.inserted_insert())
-        self.insertion_move_arm_1.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.insertion_move_arm_1.add_precondition(self.holding(self.nothing))
-        s1 = self.insertion_move_arm_1.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.insertion_move_arm_1.add_subtask(self.move_arm, self.over_fixture)
-        s3 = self.insertion_move_arm_1.add_subtask(self.inspect)
-        s4 = self.insertion_move_arm_1.add_subtask(self.perceive_set)
-        self.insertion_move_arm_1.set_ordered(s1, s2, s3, s4)
 
         # insert in hand, insert, inspect, perceive
         self.insertion_insert = Method(
@@ -226,6 +213,7 @@ class OSAIDomain(Bridge):
             self.t_insertion, self.insertion_insert.case, self.insertion_insert.insert
         )
         self.insertion_insert.add_precondition(self.case_is_placed())
+        self.insertion_insert.add_precondition(self.perceived_case_on_fixture())
         self.insertion_insert.add_precondition(Not(self.inserted_insert()))
         self.insertion_insert.add_precondition(self.current_arm_pose(self.over_fixture))
         self.insertion_insert.add_precondition(
@@ -240,11 +228,45 @@ class OSAIDomain(Bridge):
             self.insertion_insert.insert,
             self.insertion_insert.size,
         )
-        s2 = self.insertion_insert.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.insertion_insert.add_subtask(self.move_arm, self.over_fixture)
-        s4 = self.insertion_insert.add_subtask(self.inspect)
-        s5 = self.insertion_insert.add_subtask(self.perceive_set)
-        self.insertion_insert.set_ordered(s1, s2, s3, s4, s5)
+        s2 = self.insertion_insert.add_subtask(self.move_arm, self.over_fixture)
+        s3 = self.insertion_insert.add_subtask(self.inspect)
+        s4 = self.insertion_insert.add_subtask(self.perceive_set)
+        self.insertion_insert.set_ordered(s1, s2, s3, s4)
+
+        # insert in hand, over fixture, perceive case on fixture, insert, inspect, perceive
+        self.insertion_perceive_case = Method(
+            "insertion_perceive_case", case=type_item, insert=type_item, size=type_size
+        )
+        self.insertion_perceive_case.set_task(
+            self.t_insertion,
+            self.insertion_perceive_case.case,
+            self.insertion_perceive_case.insert,
+        )
+        self.insertion_perceive_case.add_precondition(self.case_is_placed())
+        self.insertion_perceive_case.add_precondition(Not(self.inserted_insert()))
+        self.insertion_perceive_case.add_precondition(
+            self.current_arm_pose(self.over_fixture)
+        )
+        self.insertion_perceive_case.add_precondition(
+            self.holding(self.insertion_perceive_case.insert)
+        )
+        self.insertion_perceive_case.add_precondition(
+            self.current_item_size(self.insertion_perceive_case.size)
+        )
+        self.insertion_perceive_case.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
+        s1 = self.insertion_perceive_case.add_subtask(self.perceive_case_on_fixture)
+        s2 = self.insertion_perceive_case.add_subtask(
+            self.insert,
+            self.insertion_perceive_case.case,
+            self.insertion_perceive_case.insert,
+            self.insertion_perceive_case.size,
+        )
+        s3 = self.insertion_perceive_case.add_subtask(self.move_arm, self.over_fixture)
+        s4 = self.insertion_perceive_case.add_subtask(self.inspect)
+        s5 = self.insertion_perceive_case.add_subtask(self.perceive_set)
+        self.insertion_perceive_case.set_ordered(s1, s2, s3, s4, s5)
 
         # insert in hand, move to fixture, insert, inspect, perceive
         self.insertion_move_arm_2 = Method(
@@ -258,6 +280,9 @@ class OSAIDomain(Bridge):
         self.insertion_move_arm_2.add_precondition(self.case_is_placed())
         self.insertion_move_arm_2.add_precondition(Not(self.inserted_insert()))
         self.insertion_move_arm_2.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
+        self.insertion_move_arm_2.add_precondition(
             self.current_arm_pose(self.over_pallet)
         )
         self.insertion_move_arm_2.add_precondition(
@@ -267,19 +292,19 @@ class OSAIDomain(Bridge):
             self.current_item_size(self.insertion_move_arm_2.size)
         )
         s1 = self.insertion_move_arm_2.add_subtask(self.move_arm, self.over_fixture)
-        s2 = self.insertion_move_arm_2.add_subtask(
+        s2 = self.insertion_move_arm_2.add_subtask(self.perceive_case_on_fixture)
+        s3 = self.insertion_move_arm_2.add_subtask(
             self.insert,
             self.insertion_move_arm_2.case,
             self.insertion_move_arm_2.insert,
             self.insertion_move_arm_2.size,
         )
-        s3 = self.insertion_move_arm_2.add_subtask(self.move_arm, self.arm_up)
         s4 = self.insertion_move_arm_2.add_subtask(self.move_arm, self.over_fixture)
         s5 = self.insertion_move_arm_2.add_subtask(self.inspect)
         s6 = self.insertion_move_arm_2.add_subtask(self.perceive_set)
         self.insertion_move_arm_2.set_ordered(s1, s2, s3, s4, s5, s6)
 
-        # insert in hand, move over palle, then to fixture, insert, inspect, perceive
+        # insert in hand, move over pallet, then to fixture, insert, inspect, perceive
         self.insertion_move_arm_3 = Method(
             "insertion_move_arm_3", case=type_item, insert=type_item, size=type_size
         )
@@ -290,6 +315,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_3.add_precondition(self.case_is_placed())
         self.insertion_move_arm_3.add_precondition(Not(self.inserted_insert()))
+        self.insertion_move_arm_3.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_move_arm_3.add_precondition(self.current_arm_pose(self.arm_up))
         self.insertion_move_arm_3.add_precondition(
             self.holding(self.insertion_move_arm_3.insert)
@@ -299,13 +327,13 @@ class OSAIDomain(Bridge):
         )
         s1 = self.insertion_move_arm_3.add_subtask(self.move_arm, self.over_pallet)
         s2 = self.insertion_move_arm_3.add_subtask(self.move_arm, self.over_fixture)
-        s3 = self.insertion_move_arm_3.add_subtask(
+        s3 = self.insertion_move_arm_3.add_subtask(self.perceive_case_on_fixture)
+        s4 = self.insertion_move_arm_3.add_subtask(
             self.insert,
             self.insertion_move_arm_3.case,
             self.insertion_move_arm_3.insert,
             self.insertion_move_arm_3.size,
         )
-        s4 = self.insertion_move_arm_3.add_subtask(self.move_arm, self.arm_up)
         s5 = self.insertion_move_arm_3.add_subtask(self.move_arm, self.over_fixture)
         s6 = self.insertion_move_arm_3.add_subtask(self.inspect)
         s7 = self.insertion_move_arm_3.add_subtask(self.perceive_set)
@@ -323,6 +351,9 @@ class OSAIDomain(Bridge):
         self.insertion_move_arm_9.add_precondition(self.case_is_placed())
         self.insertion_move_arm_9.add_precondition(Not(self.inserted_insert()))
         self.insertion_move_arm_9.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
+        self.insertion_move_arm_9.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
         self.insertion_move_arm_9.add_precondition(
@@ -334,13 +365,13 @@ class OSAIDomain(Bridge):
         s1 = self.insertion_move_arm_9.add_subtask(self.move_arm, self.arm_up)
         s2 = self.insertion_move_arm_9.add_subtask(self.move_arm, self.over_pallet)
         s3 = self.insertion_move_arm_9.add_subtask(self.move_arm, self.over_fixture)
-        s4 = self.insertion_move_arm_9.add_subtask(
+        s4 = self.insertion_move_arm_9.add_subtask(self.perceive_case_on_fixture)
+        s5 = self.insertion_move_arm_9.add_subtask(
             self.insert,
             self.insertion_move_arm_9.case,
             self.insertion_move_arm_9.insert,
             self.insertion_move_arm_9.size,
         )
-        s5 = self.insertion_move_arm_9.add_subtask(self.move_arm, self.arm_up)
         s6 = self.insertion_move_arm_9.add_subtask(self.move_arm, self.over_fixture)
         s7 = self.insertion_move_arm_9.add_subtask(self.inspect)
         s8 = self.insertion_move_arm_9.add_subtask(self.perceive_set)
@@ -357,6 +388,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_pick_insert.add_precondition(self.case_is_placed())
         self.insertion_pick_insert.add_precondition(Not(self.inserted_insert()))
+        self.insertion_pick_insert.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_pick_insert.add_precondition(
             self.current_arm_pose(self.over_pallet)
         )
@@ -376,13 +410,13 @@ class OSAIDomain(Bridge):
         s2 = self.insertion_pick_insert.add_subtask(self.move_arm, self.arm_up)
         s3 = self.insertion_pick_insert.add_subtask(self.move_arm, self.over_pallet)
         s4 = self.insertion_pick_insert.add_subtask(self.move_arm, self.over_fixture)
-        s5 = self.insertion_pick_insert.add_subtask(
+        s5 = self.insertion_pick_insert.add_subtask(self.perceive_case_on_fixture)
+        s6 = self.insertion_pick_insert.add_subtask(
             self.insert,
             self.insertion_pick_insert.case,
             self.insertion_pick_insert.insert,
             self.insertion_pick_insert.size,
         )
-        s6 = self.insertion_pick_insert.add_subtask(self.move_arm, self.arm_up)
         s7 = self.insertion_pick_insert.add_subtask(self.move_arm, self.over_fixture)
         s8 = self.insertion_pick_insert.add_subtask(self.inspect)
         s9 = self.insertion_pick_insert.add_subtask(self.perceive_set)
@@ -403,6 +437,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_perceive_insert.add_precondition(self.case_is_placed())
         self.insertion_perceive_insert.add_precondition(Not(self.inserted_insert()))
+        self.insertion_perceive_insert.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_perceive_insert.add_precondition(
             self.current_arm_pose(self.over_pallet)
         )
@@ -425,13 +462,13 @@ class OSAIDomain(Bridge):
         s5 = self.insertion_perceive_insert.add_subtask(
             self.move_arm, self.over_fixture
         )
-        s6 = self.insertion_perceive_insert.add_subtask(
+        s6 = self.insertion_perceive_insert.add_subtask(self.perceive_case_on_fixture)
+        s7 = self.insertion_perceive_insert.add_subtask(
             self.insert,
             self.insertion_perceive_insert.case,
             self.insertion_perceive_insert.insert,
             self.insertion_perceive_insert.size,
         )
-        s7 = self.insertion_perceive_insert.add_subtask(self.move_arm, self.arm_up)
         s8 = self.insertion_perceive_insert.add_subtask(
             self.move_arm, self.over_fixture
         )
@@ -454,6 +491,9 @@ class OSAIDomain(Bridge):
         self.insertion_move_arm_4.add_precondition(self.case_is_placed())
         self.insertion_move_arm_4.add_precondition(Not(self.inserted_insert()))
         self.insertion_move_arm_4.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
+        self.insertion_move_arm_4.add_precondition(
             self.current_arm_pose(self.over_fixture)
         )
         self.insertion_move_arm_4.add_precondition(self.holding(self.nothing))
@@ -474,13 +514,13 @@ class OSAIDomain(Bridge):
         s4 = self.insertion_move_arm_4.add_subtask(self.move_arm, self.arm_up)
         s5 = self.insertion_move_arm_4.add_subtask(self.move_arm, self.over_pallet)
         s6 = self.insertion_move_arm_4.add_subtask(self.move_arm, self.over_fixture)
-        s7 = self.insertion_move_arm_4.add_subtask(
+        s7 = self.insertion_move_arm_4.add_subtask(self.perceive_case_on_fixture)
+        s8 = self.insertion_move_arm_4.add_subtask(
             self.insert,
             self.insertion_move_arm_4.case,
             self.insertion_move_arm_4.insert,
             self.insertion_move_arm_4.size,
         )
-        s8 = self.insertion_move_arm_4.add_subtask(self.move_arm, self.arm_up)
         s9 = self.insertion_move_arm_4.add_subtask(self.move_arm, self.over_fixture)
         s10 = self.insertion_move_arm_4.add_subtask(self.inspect)
         s11 = self.insertion_move_arm_4.add_subtask(self.perceive_set)
@@ -500,7 +540,12 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_5.add_precondition(self.case_is_placed())
         self.insertion_move_arm_5.add_precondition(Not(self.inserted_insert()))
-        self.insertion_move_arm_5.add_precondition(self.current_arm_pose(self.arm_up))
+        self.insertion_move_arm_5.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
+        self.insertion_move_arm_5.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.insertion_move_arm_5.add_precondition(self.holding(self.nothing))
         self.insertion_move_arm_5.add_precondition(
             self.current_item_size(self.insertion_move_arm_5.size)
@@ -520,66 +565,18 @@ class OSAIDomain(Bridge):
         s5 = self.insertion_move_arm_5.add_subtask(self.move_arm, self.arm_up)
         s6 = self.insertion_move_arm_5.add_subtask(self.move_arm, self.over_pallet)
         s7 = self.insertion_move_arm_5.add_subtask(self.move_arm, self.over_fixture)
-        s8 = self.insertion_move_arm_5.add_subtask(
+        s8 = self.insertion_move_arm_5.add_subtask(self.perceive_case_on_fixture)
+        s9 = self.insertion_move_arm_5.add_subtask(
             self.insert,
             self.insertion_move_arm_5.case,
             self.insertion_move_arm_5.insert,
             self.insertion_move_arm_5.size,
         )
-        s9 = self.insertion_move_arm_5.add_subtask(self.move_arm, self.arm_up)
         s10 = self.insertion_move_arm_5.add_subtask(self.move_arm, self.over_fixture)
         s11 = self.insertion_move_arm_5.add_subtask(self.inspect)
         s12 = self.insertion_move_arm_5.add_subtask(self.perceive_set)
         self.insertion_move_arm_5.set_ordered(
             s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12
-        )
-
-        # placed case, move arm up
-        self.insertion_move_arm_10 = Method(
-            "insertion_move_arm_10", case=type_item, insert=type_item, size=type_size
-        )
-        self.insertion_move_arm_10.set_task(
-            self.t_insertion,
-            self.insertion_move_arm_10.case,
-            self.insertion_move_arm_10.insert,
-        )
-        self.insertion_move_arm_10.add_precondition(self.case_is_placed())
-        self.insertion_move_arm_10.add_precondition(Not(self.inserted_insert()))
-        self.insertion_move_arm_10.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.insertion_move_arm_10.add_precondition(self.holding(self.nothing))
-        self.insertion_move_arm_10.add_precondition(
-            self.current_item_size(self.insertion_move_arm_10.size)
-        )
-        self.insertion_move_arm_10.add_precondition(
-            self.inserts_available(self.insertion_move_arm_10.size)
-        )
-        self.insertion_move_arm_10.add_precondition(Not(self.perceived_insert()))
-        s1 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.over_fixture)
-        s3 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.over_pallet)
-        s4 = self.insertion_move_arm_10.add_subtask(self.perceive_insert)
-        s5 = self.insertion_move_arm_10.add_subtask(
-            self.pick_insert,
-            self.insertion_move_arm_10.insert,
-            self.insertion_move_arm_10.size,
-        )
-        s6 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.arm_up)
-        s7 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.over_pallet)
-        s8 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.over_fixture)
-        s9 = self.insertion_move_arm_10.add_subtask(
-            self.insert,
-            self.insertion_move_arm_10.case,
-            self.insertion_move_arm_10.insert,
-            self.insertion_move_arm_10.size,
-        )
-        s10 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.arm_up)
-        s11 = self.insertion_move_arm_10.add_subtask(self.move_arm, self.over_fixture)
-        s12 = self.insertion_move_arm_10.add_subtask(self.inspect)
-        s13 = self.insertion_move_arm_10.add_subtask(self.perceive_set)
-        self.insertion_move_arm_10.set_ordered(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13
         )
 
         # case in hand, place it
@@ -593,6 +590,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_place_case.add_precondition(Not(self.case_is_placed()))
         self.insertion_place_case.add_precondition(Not(self.inserted_insert()))
+        self.insertion_place_case.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_place_case.add_precondition(
             self.current_arm_pose(self.over_fixture)
         )
@@ -611,30 +611,29 @@ class OSAIDomain(Bridge):
             self.insertion_place_case.case,
             self.insertion_place_case.size,
         )
-        s2 = self.insertion_place_case.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
-        s4 = self.insertion_place_case.add_subtask(self.move_arm, self.over_pallet)
-        s5 = self.insertion_place_case.add_subtask(self.perceive_insert)
-        s6 = self.insertion_place_case.add_subtask(
+        s2 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
+        s3 = self.insertion_place_case.add_subtask(self.move_arm, self.over_pallet)
+        s4 = self.insertion_place_case.add_subtask(self.perceive_insert)
+        s5 = self.insertion_place_case.add_subtask(
             self.pick_insert,
             self.insertion_place_case.insert,
             self.insertion_place_case.size,
         )
-        s7 = self.insertion_place_case.add_subtask(self.move_arm, self.arm_up)
-        s8 = self.insertion_place_case.add_subtask(self.move_arm, self.over_pallet)
-        s9 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
+        s6 = self.insertion_place_case.add_subtask(self.move_arm, self.arm_up)
+        s7 = self.insertion_place_case.add_subtask(self.move_arm, self.over_pallet)
+        s8 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
+        s9 = self.insertion_place_case.add_subtask(self.perceive_case_on_fixture)
         s10 = self.insertion_place_case.add_subtask(
             self.insert,
             self.insertion_place_case.case,
             self.insertion_place_case.insert,
             self.insertion_place_case.size,
         )
-        s11 = self.insertion_place_case.add_subtask(self.move_arm, self.arm_up)
-        s12 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
-        s13 = self.insertion_place_case.add_subtask(self.inspect)
-        s14 = self.insertion_place_case.add_subtask(self.perceive_set)
+        s11 = self.insertion_place_case.add_subtask(self.move_arm, self.over_fixture)
+        s12 = self.insertion_place_case.add_subtask(self.inspect)
+        s13 = self.insertion_place_case.add_subtask(self.perceive_set)
         self.insertion_place_case.set_ordered(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13
         )
 
         # case in hand, move over fixture, place case
@@ -648,6 +647,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_6.add_precondition(Not(self.case_is_placed()))
         self.insertion_move_arm_6.add_precondition(Not(self.inserted_insert()))
+        self.insertion_move_arm_6.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_move_arm_6.add_precondition(
             self.current_arm_pose(self.over_conveyor)
         )
@@ -667,30 +669,29 @@ class OSAIDomain(Bridge):
             self.insertion_move_arm_6.case,
             self.insertion_move_arm_6.size,
         )
-        s3 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
-        s5 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_pallet)
-        s6 = self.insertion_move_arm_6.add_subtask(self.perceive_insert)
-        s7 = self.insertion_move_arm_6.add_subtask(
+        s3 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
+        s4 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_pallet)
+        s5 = self.insertion_move_arm_6.add_subtask(self.perceive_insert)
+        s6 = self.insertion_move_arm_6.add_subtask(
             self.pick_insert,
             self.insertion_move_arm_6.insert,
             self.insertion_move_arm_6.size,
         )
-        s8 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.arm_up)
-        s9 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_pallet)
-        s10 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
+        s7 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.arm_up)
+        s8 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_pallet)
+        s9 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
+        s10 = self.insertion_move_arm_6.add_subtask(self.perceive_case_on_fixture)
         s11 = self.insertion_move_arm_6.add_subtask(
             self.insert,
             self.insertion_move_arm_6.case,
             self.insertion_move_arm_6.insert,
             self.insertion_move_arm_6.size,
         )
-        s12 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.arm_up)
-        s13 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
-        s14 = self.insertion_move_arm_6.add_subtask(self.inspect)
-        s15 = self.insertion_move_arm_6.add_subtask(self.perceive_set)
+        s12 = self.insertion_move_arm_6.add_subtask(self.move_arm, self.over_fixture)
+        s13 = self.insertion_move_arm_6.add_subtask(self.inspect)
+        s14 = self.insertion_move_arm_6.add_subtask(self.perceive_set)
         self.insertion_move_arm_6.set_ordered(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14
         )
 
         # case in hand, move over conveyor, then over fixture, place case
@@ -704,6 +705,9 @@ class OSAIDomain(Bridge):
         )
         self.insertion_move_arm_7.add_precondition(Not(self.case_is_placed()))
         self.insertion_move_arm_7.add_precondition(Not(self.inserted_insert()))
+        self.insertion_move_arm_7.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_move_arm_7.add_precondition(self.current_arm_pose(self.arm_up))
         self.insertion_move_arm_7.add_precondition(
             self.holding(self.insertion_move_arm_7.case)
@@ -722,30 +726,29 @@ class OSAIDomain(Bridge):
             self.insertion_move_arm_7.case,
             self.insertion_move_arm_7.size,
         )
-        s4 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.arm_up)
-        s5 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
-        s6 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_pallet)
-        s7 = self.insertion_move_arm_7.add_subtask(self.perceive_insert)
-        s8 = self.insertion_move_arm_7.add_subtask(
+        s4 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
+        s5 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_pallet)
+        s6 = self.insertion_move_arm_7.add_subtask(self.perceive_insert)
+        s7 = self.insertion_move_arm_7.add_subtask(
             self.pick_insert,
             self.insertion_move_arm_7.insert,
             self.insertion_move_arm_7.size,
         )
-        s9 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.arm_up)
-        s10 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_pallet)
-        s11 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
+        s8 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.arm_up)
+        s9 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_pallet)
+        s10 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
+        s11 = self.insertion_move_arm_7.add_subtask(self.perceive_case_on_fixture)
         s12 = self.insertion_move_arm_7.add_subtask(
             self.insert,
             self.insertion_move_arm_7.case,
             self.insertion_move_arm_7.insert,
             self.insertion_move_arm_7.size,
         )
-        s13 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.arm_up)
-        s14 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
-        s15 = self.insertion_move_arm_7.add_subtask(self.inspect)
-        s16 = self.insertion_move_arm_7.add_subtask(self.perceive_set)
+        s13 = self.insertion_move_arm_7.add_subtask(self.move_arm, self.over_fixture)
+        s14 = self.insertion_move_arm_7.add_subtask(self.inspect)
+        s15 = self.insertion_move_arm_7.add_subtask(self.perceive_set)
         self.insertion_move_arm_7.set_ordered(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15
         )
 
         # case location and type known, pick, insert, inspect, perceive
@@ -760,6 +763,9 @@ class OSAIDomain(Bridge):
 
         self.insertion_move_arm_11.add_precondition(Not(self.case_is_placed()))
         self.insertion_move_arm_11.add_precondition(Not(self.inserted_insert()))
+        self.insertion_move_arm_11.add_precondition(
+            Not(self.perceived_case_on_fixture())
+        )
         self.insertion_move_arm_11.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
@@ -781,30 +787,29 @@ class OSAIDomain(Bridge):
             self.insertion_move_arm_11.case,
             self.insertion_move_arm_11.size,
         )
-        s5 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.arm_up)
-        s6 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
-        s7 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_pallet)
-        s8 = self.insertion_move_arm_11.add_subtask(self.perceive_insert)
-        s9 = self.insertion_move_arm_11.add_subtask(
+        s5 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
+        s6 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_pallet)
+        s7 = self.insertion_move_arm_11.add_subtask(self.perceive_insert)
+        s8 = self.insertion_move_arm_11.add_subtask(
             self.pick_insert,
             self.insertion_move_arm_11.insert,
             self.insertion_move_arm_11.size,
         )
-        s10 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.arm_up)
-        s11 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_pallet)
-        s12 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
+        s9 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.arm_up)
+        s10 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_pallet)
+        s11 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
+        s12 = self.insertion_move_arm_11.add_subtask(self.perceive_case_on_fixture)
         s13 = self.insertion_move_arm_11.add_subtask(
             self.insert,
             self.insertion_move_arm_11.case,
             self.insertion_move_arm_11.insert,
             self.insertion_move_arm_11.size,
         )
-        s14 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.arm_up)
-        s15 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
-        s16 = self.insertion_move_arm_11.add_subtask(self.inspect)
-        s17 = self.insertion_move_arm_11.add_subtask(self.perceive_set)
+        s14 = self.insertion_move_arm_11.add_subtask(self.move_arm, self.over_fixture)
+        s15 = self.insertion_move_arm_11.add_subtask(self.inspect)
+        s16 = self.insertion_move_arm_11.add_subtask(self.perceive_set)
         self.insertion_move_arm_11.set_ordered(
-            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16, s17
+            s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15, s16
         )
 
         # case location and type known, pick, insert, inspect, perceive
@@ -818,6 +823,7 @@ class OSAIDomain(Bridge):
         )
         self.insertion_full.add_precondition(Not(self.case_is_placed()))
         self.insertion_full.add_precondition(Not(self.inserted_insert()))
+        self.insertion_full.add_precondition(Not(self.perceived_case_on_fixture()))
         self.insertion_full.add_precondition(self.current_arm_pose(self.over_conveyor))
         self.insertion_full.add_precondition(self.holding(self.nothing))
         self.insertion_full.add_precondition(
@@ -836,26 +842,25 @@ class OSAIDomain(Bridge):
         s5 = self.insertion_full.add_subtask(
             self.place_case, self.insertion_full.case, self.insertion_full.size
         )
-        s6 = self.insertion_full.add_subtask(self.move_arm, self.arm_up)
-        s7 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
-        s8 = self.insertion_full.add_subtask(self.move_arm, self.over_pallet)
-        s9 = self.insertion_full.add_subtask(self.perceive_insert)
-        s10 = self.insertion_full.add_subtask(
+        s6 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
+        s7 = self.insertion_full.add_subtask(self.move_arm, self.over_pallet)
+        s8 = self.insertion_full.add_subtask(self.perceive_insert)
+        s9 = self.insertion_full.add_subtask(
             self.pick_insert, self.insertion_full.insert, self.insertion_full.size
         )
-        s11 = self.insertion_full.add_subtask(self.move_arm, self.arm_up)
-        s12 = self.insertion_full.add_subtask(self.move_arm, self.over_pallet)
-        s13 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
+        s10 = self.insertion_full.add_subtask(self.move_arm, self.arm_up)
+        s11 = self.insertion_full.add_subtask(self.move_arm, self.over_pallet)
+        s12 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
+        s13 = self.insertion_full.add_subtask(self.perceive_case_on_fixture)
         s14 = self.insertion_full.add_subtask(
             self.insert,
             self.insertion_full.case,
             self.insertion_full.insert,
             self.insertion_full.size,
         )
-        s15 = self.insertion_full.add_subtask(self.move_arm, self.arm_up)
-        s16 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
-        s17 = self.insertion_full.add_subtask(self.inspect)
-        s18 = self.insertion_full.add_subtask(self.perceive_set)
+        s15 = self.insertion_full.add_subtask(self.move_arm, self.over_fixture)
+        s16 = self.insertion_full.add_subtask(self.inspect)
+        s17 = self.insertion_full.add_subtask(self.perceive_set)
         self.insertion_full.set_ordered(
             s1,
             s2,
@@ -874,22 +879,9 @@ class OSAIDomain(Bridge):
             s15,
             s16,
             s17,
-            s18,
         )
 
         # PLACE SET
-        # set already placed, moved arm up, move over boxes
-        self.place_set_move_arm_1 = Method(
-            "place_set_move_arm_1", set=type_item, status=type_status
-        )
-        self.place_set_move_arm_1.set_task(
-            self.t_place_set, self.place_set_move_arm_1.set
-        )
-        self.place_set_move_arm_1.add_precondition(self.set_status_known())
-        self.place_set_move_arm_1.add_precondition(self.holding(self.nothing))
-        self.place_set_move_arm_1.add_precondition(self.current_arm_pose(self.arm_up))
-        self.place_set_move_arm_1.add_subtask(self.move_arm_end)
-
         # set already placed, move arm up and over boxes
         self.place_set_move_arm_4 = Method(
             "place_set_move_arm_4", set=type_item, status=type_status
@@ -902,9 +894,7 @@ class OSAIDomain(Bridge):
         self.place_set_move_arm_4.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
-        s1 = self.place_set_move_arm_4.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.place_set_move_arm_4.add_subtask(self.move_arm_end)
-        self.place_set_move_arm_4.set_ordered(s1, s2)
+        self.place_set_move_arm_4.add_subtask(self.move_arm_end)
 
         # set in hand, place in box
         self.place_set_box = Method("place_set_box", set=type_item, status=type_status)
@@ -918,9 +908,8 @@ class OSAIDomain(Bridge):
         s1 = self.place_set_box.add_subtask(
             self.place_set_in_box, self.place_set_box.set, self.place_set_box.status
         )
-        s2 = self.place_set_box.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.place_set_box.add_subtask(self.move_arm_end)
-        self.place_set_box.set_ordered(s1, s2, s3)
+        s2 = self.place_set_box.add_subtask(self.move_arm_end)
+        self.place_set_box.set_ordered(s1, s2)
 
         # set in hand, move arm over boxes and place
         self.place_set_move_arm_2 = Method(
@@ -945,9 +934,8 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_2.set,
             self.place_set_move_arm_2.status,
         )
-        s3 = self.place_set_move_arm_2.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.place_set_move_arm_2.add_subtask(self.move_arm_end)
-        self.place_set_move_arm_2.set_ordered(s1, s2, s3, s4)
+        s3 = self.place_set_move_arm_2.add_subtask(self.move_arm_end)
+        self.place_set_move_arm_2.set_ordered(s1, s2, s3)
 
         # set in hand, move arm over fixture, then over boxes and place
         self.place_set_move_arm_3 = Method(
@@ -971,9 +959,8 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_3.set,
             self.place_set_move_arm_3.status,
         )
-        s4 = self.place_set_move_arm_3.add_subtask(self.move_arm, self.arm_up)
-        s5 = self.place_set_move_arm_3.add_subtask(self.move_arm_end)
-        self.place_set_move_arm_3.set_ordered(s1, s2, s3, s4, s5)
+        s4 = self.place_set_move_arm_3.add_subtask(self.move_arm_end)
+        self.place_set_move_arm_3.set_ordered(s1, s2, s3, s4)
 
         # set in hand, move arm up, then over fixture, then over boxes and place
         self.place_set_move_arm_5 = Method(
@@ -1000,9 +987,8 @@ class OSAIDomain(Bridge):
             self.place_set_move_arm_5.set,
             self.place_set_move_arm_5.status,
         )
-        s5 = self.place_set_move_arm_5.add_subtask(self.move_arm, self.arm_up)
-        s6 = self.place_set_move_arm_5.add_subtask(self.move_arm_end)
-        self.place_set_move_arm_5.set_ordered(s1, s2, s3, s4, s5, s6)
+        s5 = self.place_set_move_arm_5.add_subtask(self.move_arm_end)
+        self.place_set_move_arm_5.set_ordered(s1, s2, s3, s4, s5)
 
         # pick and place set
         self.place_set_full = Method(
@@ -1023,9 +1009,8 @@ class OSAIDomain(Bridge):
         s5 = self.place_set_full.add_subtask(
             self.place_set_in_box, self.place_set_full.set, self.place_set_full.status
         )
-        s6 = self.place_set_full.add_subtask(self.move_arm, self.arm_up)
-        s7 = self.place_set_full.add_subtask(self.move_arm_end)
-        self.place_set_full.set_ordered(s1, s2, s3, s4, s5, s6, s7)
+        s6 = self.place_set_full.add_subtask(self.move_arm_end)
+        self.place_set_full.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # box is full
         self.place_set_empty_box = Method(
@@ -1138,7 +1123,7 @@ class OSAIDomain(Bridge):
             self.insertion_pick_insert,
             self.insertion_place_case,
             self.insertion_perceive_insert,
-            self.insertion_move_arm_1,
+            self.insertion_perceive_case,
             self.insertion_move_arm_2,
             self.insertion_move_arm_3,
             self.insertion_move_arm_4,
@@ -1147,10 +1132,8 @@ class OSAIDomain(Bridge):
             self.insertion_move_arm_7,
             self.insertion_move_arm_8,
             self.insertion_move_arm_9,
-            self.insertion_move_arm_10,
             self.insertion_move_arm_11,
             self.insertion_full,
-            self.place_set_move_arm_1,
             self.place_set_move_arm_2,
             self.place_set_move_arm_3,
             self.place_set_move_arm_4,
@@ -1178,13 +1161,25 @@ class OSAIDomain(Bridge):
             self.get_next_case.add_precondition(Not(self.item_in_fov()))
             self.get_next_case.add_effect(self.item_in_fov(), True)
 
-            self.perceive_case, _ = self.create_action(
-                "perceive_case",
-                _callable=actions.perceive_case,
+            self.perceive_case_on_conveyor, _ = self.create_action(
+                "perceive_case_on_conveyor", _callable=actions.perceive_case_on_conveyor
             )
-            self.perceive_case.add_precondition(Not(self.item_size_known()))
-            self.perceive_case.add_precondition(self.item_in_fov())
-            self.perceive_case.add_effect(self.item_size_known(), True)
+            self.perceive_case_on_conveyor.add_precondition(Not(self.item_size_known()))
+            self.perceive_case_on_conveyor.add_precondition(self.item_in_fov())
+            self.perceive_case_on_conveyor.add_effect(self.item_size_known(), True)
+
+            self.perceive_case_on_fixture, _ = self.create_action(
+                "perceive_case_on_fixture", _callable=actions.perceive_case_on_fixture
+            )
+            self.perceive_case_on_fixture.add_precondition(
+                Not(self.perceived_case_on_fixture())
+            )
+            self.perceive_case_on_fixture.add_precondition(
+                self.current_arm_pose(self.over_fixture)
+            )
+            self.perceive_case_on_fixture.add_effect(
+                self.perceived_case_on_fixture(), True
+            )
 
             self.perceive_insert, _ = self.create_action(
                 "perceive_insert", _callable=actions.perceive_insert

@@ -54,6 +54,7 @@ class Environment:
         self.inserted = False
         self.insert_perceived = False
         self.set_perceived = False
+        self.case_on_fixture_perceived = False
 
         self.item_size = None
         self.set_status = None
@@ -100,6 +101,7 @@ class Environment:
         self.inserted = False
         self.insert_perceived = False
         self.set_perceived = False
+        self.case_on_fixture_perceived = False
 
         self.item_size = None
         self.set_status = None
@@ -124,6 +126,7 @@ class Environment:
         self.inserted = False
         self.insert_perceived = False
         self.set_perceived = False
+        self.case_on_fixture_perceived = False
 
         self.item_size = None
         self.set_status = None
@@ -221,6 +224,9 @@ class Environment:
     def space_in_box(self, status: Status) -> bool:
         return self.box_status[status] < 3
 
+    def perceived_case_on_fixture(self) -> bool:
+        return self.case_on_fixture_perceived
+
 
 class Actions:
     def __init__(self, env: Environment):
@@ -250,10 +256,10 @@ class Actions:
             self._env.case_available = True
         return result, msg
 
-    def perceive_case(self):
+    def perceive_case_on_conveyor(self):
         self._env._clear_item_type("case")
         result, msg = PlanDispatcher.run_symbolic_action(
-            "perceive_case",
+            "perceive_case_on_conveyor",
             timeout=self._non_robot_actions_timeout,
         )
         if result:
@@ -265,6 +271,16 @@ class Actions:
             else:
                 self._env.item_size = None
                 return False, "failed"
+        return result, msg
+
+    def perceive_case_on_fixture(self):
+        self._env._clear_item_type("case")
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "perceive_case_on_fixture",
+            timeout=self._non_robot_actions_timeout,
+        )
+        if result:
+            self._env.case_on_fixture_perceived = True
         return result, msg
 
     def perceive_insert(self):
@@ -444,18 +460,25 @@ class Actions:
 
     def insert(self, insert: Item, case: Item, size: Size):
         if self._env.item_in_hand is not None and self._env.placed_case is not None:
-            insert_class, _ = self._env.item_in_hand.rsplit("_", 1)
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "insert",
-                [insert_class],
-                timeout=self._robot_actions_timeout,
-            )
-            if result:
-                self._env.holding_item = Item.nothing
-                self._env.item_in_hand = None
-                self._env.arm_pose = ArmPose.unknown
-                self._env.inserted = True
-            return result, msg
+            case_id = None
+            if self._env.item_size is not None:
+                _, case_id = self._env._get_item_type_and_id(
+                    self._env.item_size.value + "_case"
+                )
+            if case_id is not None:
+                insert_class, _ = self._env.item_in_hand.rsplit("_", 1)
+                result, msg = PlanDispatcher.run_symbolic_action(
+                    "insert",
+                    [insert_class, str(case_id)],
+                    timeout=self._robot_actions_timeout,
+                )
+                if result:
+                    self._env.holding_item = Item.nothing
+                    self._env.item_in_hand = None
+                    self._env.arm_pose = ArmPose.unknown
+                    self._env.inserted = True
+                    self._env.case_on_fixture_perceived = False
+                return result, msg
         else:
             return False, "failed"
 
