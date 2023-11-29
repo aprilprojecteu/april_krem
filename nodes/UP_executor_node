@@ -62,7 +62,10 @@ class AprilPlanDispatcher:
 
     def _gesture_backup_button_cb(self, msg: GestureBackupButtonStates):
         # RESET
-        if msg.gesture_backup_button_state_0:
+        if (
+            msg.gesture_backup_button_state_0
+            and PlanDispatcher.STATE != KREM_STATE.RESET
+        ):
             rospy.logwarn("Gesture Backup Button 0 pressed! Reset Scenario!")
             PlanDispatcher.change_state(KREM_STATE.RESET)
             rospy.sleep(1)
@@ -72,7 +75,10 @@ class AprilPlanDispatcher:
                 "Press continue to reset scenario."
             )
         # CANCEL
-        elif msg.gesture_backup_button_state_1:
+        elif (
+            msg.gesture_backup_button_state_1
+            and PlanDispatcher.STATE != KREM_STATE.CANCELED
+        ):
             rospy.logwarn("Gesture Backup Button 1 pressed! Restart cycle!")
             PlanDispatcher.change_state(KREM_STATE.CANCELED)
             rospy.sleep(1)
@@ -82,11 +88,17 @@ class AprilPlanDispatcher:
                 "Press continue to reset cycle."
             )
         # STOP
-        elif msg.gesture_backup_button_state_2:
+        elif (
+            msg.gesture_backup_button_state_2
+            and PlanDispatcher.STATE != KREM_STATE.PAUSED
+        ):
             rospy.logwarn("Gesture Backup Button 2 pressed! Pausing action execution.")
             PlanDispatcher.change_state(KREM_STATE.PAUSED)
         # CONTINUE
-        elif msg.gesture_backup_button_state_3:
+        elif (
+            msg.gesture_backup_button_state_3
+            and PlanDispatcher.STATE != KREM_STATE.ACTIVE
+        ):
             rospy.logwarn("Gesture Backup Button 3 pressed! Resuming action execution.")
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
         # RETRIEVE
@@ -99,7 +111,10 @@ class AprilPlanDispatcher:
         if msg.gesture_backup_button_state_6:
             pass
         # HOME
-        if msg.gesture_backup_button_state_7:
+        if (
+            msg.gesture_backup_button_state_7
+            and PlanDispatcher.STATE != KREM_STATE.HOME
+        ):
             rospy.logwarn(
                 "Gesture Backup Button 7 pressed! Return arm to home pose and reset scenario!"
             )
@@ -113,15 +128,24 @@ class AprilPlanDispatcher:
     def _gesture_cb(self, msg: PersonGesturesList):
         for gesture in msg.person_gestures_list:
             if gesture.gesture_left.confidence >= 0.7:
-                if gesture.gesture_left.gesture == Gesture.CONTINUE:
+                if (
+                    gesture.gesture_left.gesture == Gesture.CONTINUE
+                    and PlanDispatcher.STATE != KREM_STATE.ACTIVE
+                ):
                     rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
                     PlanDispatcher.change_state(KREM_STATE.ACTIVE)
                     return
-                elif gesture.gesture_left.gesture == Gesture.STOP:
+                elif (
+                    gesture.gesture_left.gesture == Gesture.STOP
+                    and PlanDispatcher.STATE != KREM_STATE.PAUSED
+                ):
                     rospy.logwarn("Gesture STOP detected! Execution paused.")
                     PlanDispatcher.change_state(KREM_STATE.PAUSED)
                     return
-                elif gesture.gesture_left.gesture == Gesture.CANCEL:
+                elif (
+                    gesture.gesture_left.gesture == Gesture.CANCEL
+                    and PlanDispatcher.STATE != KREM_STATE.CANCELED
+                ):
                     rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
                     PlanDispatcher.change_state(KREM_STATE.CANCELED)
                     rospy.sleep(1)
@@ -133,15 +157,24 @@ class AprilPlanDispatcher:
                     return
 
             if gesture.gesture_right.confidence >= 0.7:
-                if gesture.gesture_right.gesture == Gesture.CONTINUE:
+                if (
+                    gesture.gesture_right.gesture == Gesture.CONTINUE
+                    and PlanDispatcher.STATE != KREM_STATE.ACTIVE
+                ):
                     rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
                     PlanDispatcher.change_state(KREM_STATE.ACTIVE)
                     return
-                elif gesture.gesture_right.gesture == Gesture.STOP:
+                elif (
+                    gesture.gesture_right.gesture == Gesture.STOP
+                    and PlanDispatcher.STATE != KREM_STATE.PAUSED
+                ):
                     rospy.logwarn("Gesture STOP detected! Execution paused.")
                     PlanDispatcher.change_state(KREM_STATE.PAUSED)
                     return
-                elif gesture.gesture_right.gesture == Gesture.CANCEL:
+                elif (
+                    gesture.gesture_right.gesture == Gesture.CANCEL
+                    and PlanDispatcher.STATE != KREM_STATE.CANCELED
+                ):
                     rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
                     PlanDispatcher.change_state(KREM_STATE.CANCELED)
                     rospy.sleep(1)
