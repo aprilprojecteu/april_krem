@@ -45,9 +45,10 @@ class AprilPlanDispatcher:
         self._timeout = 60.0
 
         # Gesture Topics
-        self._gestures_camera1 = rospy.Subscriber(
-            "/pem/camera1/human/gesture_results", PersonGesturesList, self._gesture_cb
-        )
+        # only check camera2
+        # self._gestures_camera1 = rospy.Subscriber(
+        #     "/pem/camera1/human/gesture_results", PersonGesturesList, self._gesture_cb
+        # )
         self._gestures_camera2 = rospy.Subscriber(
             "/pem/camera2/human/gesture_results", PersonGesturesList, self._gesture_cb
         )
@@ -110,32 +111,46 @@ class AprilPlanDispatcher:
             rospy.loginfo(f"Arm moved to home pose with result: {result}")
 
     def _gesture_cb(self, msg: PersonGesturesList):
-        # TODO Use complete list
         for gesture in msg.person_gestures_list:
-            if gesture.gesture_left.gesture == Gesture.CONTINUE:
-                rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
-                PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-                return
-            elif gesture.gesture_right.gesture == Gesture.CONTINUE:
-                rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
-                PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-                return
-            elif gesture.gesture_left.gesture == Gesture.STOP:
-                rospy.logwarn("Gesture STOP detected! Execution paused.")
-                PlanDispatcher.change_state(KREM_STATE.PAUSED)
-                return
-            elif gesture.gesture_right.gesture == Gesture.STOP:
-                rospy.logwarn("Gesture STOP detected! Execution paused.")
-                PlanDispatcher.change_state(KREM_STATE.PAUSED)
-                return
-            elif gesture.gesture_left.gesture == Gesture.CANCEL:
-                rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
-                PlanDispatcher.change_state(KREM_STATE.CANCELED)
-                return
-            elif gesture.gesture_right.gesture == Gesture.CANCEL:
-                rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
-                PlanDispatcher.change_state(KREM_STATE.CANCELED)
-                return
+            if gesture.gesture_left.confidence >= 0.7:
+                if gesture.gesture_left.gesture == Gesture.CONTINUE:
+                    rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
+                    PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+                    return
+                elif gesture.gesture_left.gesture == Gesture.STOP:
+                    rospy.logwarn("Gesture STOP detected! Execution paused.")
+                    PlanDispatcher.change_state(KREM_STATE.PAUSED)
+                    return
+                elif gesture.gesture_left.gesture == Gesture.CANCEL:
+                    rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
+                    PlanDispatcher.change_state(KREM_STATE.CANCELED)
+                    rospy.sleep(1)
+                    if self._domain is not None:
+                        self._domain.specific_domain._env.reset_env_keep_counters()
+                    PlanDispatcher.wait_for_human_intervention_message(
+                        "Gesture or press continue to continue cycle at beginning."
+                    )
+                    return
+
+            if gesture.gesture_right.confidence >= 0.7:
+                if gesture.gesture_right.gesture == Gesture.CONTINUE:
+                    rospy.logwarn("Gesture CONTINUE detected! Execution continues.")
+                    PlanDispatcher.change_state(KREM_STATE.ACTIVE)
+                    return
+                elif gesture.gesture_right.gesture == Gesture.STOP:
+                    rospy.logwarn("Gesture STOP detected! Execution paused.")
+                    PlanDispatcher.change_state(KREM_STATE.PAUSED)
+                    return
+                elif gesture.gesture_right.gesture == Gesture.CANCEL:
+                    rospy.logwarn("Gesture CANCEL detected! Execution canceled.")
+                    PlanDispatcher.change_state(KREM_STATE.CANCELED)
+                    rospy.sleep(1)
+                    if self._domain is not None:
+                        self._domain.specific_domain._env.reset_env_keep_counters()
+                    PlanDispatcher.wait_for_human_intervention_message(
+                        "Gesture or press continue to continue cycle at beginning."
+                    )
+                    return
 
     def plan(self, goal=None) -> bool:
         plan = None
