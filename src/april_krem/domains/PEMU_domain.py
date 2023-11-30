@@ -175,28 +175,12 @@ class PEMUDomain(Bridge):
         )
         self.pick_pillow_from_table_full.set_ordered(s1, s2)
 
-        # picked pillow from scale, move arm over scale
-        self.pick_pillow_from_scale_move_arm = Method(
-            "pick_pillow_from_scale_move_arm", pillow=type_item
-        )
-        self.pick_pillow_from_scale_move_arm.set_task(
-            self.t_pick_pillow, self.pick_pillow_from_scale_move_arm.pillow
-        )
-        self.pick_pillow_from_scale_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.pick_pillow_from_scale_move_arm.add_precondition(
-            self.holding(self.pick_pillow_from_scale_move_arm.pillow)
-        )
-        self.pick_pillow_from_scale_move_arm.add_precondition(self.item_size_known())
-        self.pick_pillow_from_scale_move_arm.add_precondition(
-            self.pillow_status_known()
-        )
-        self.pick_pillow_from_scale_move_arm.add_subtask(self.move_arm, self.over_scale)
-
         # pillow on scale, pick it and move arm
         self.pick_pillow_from_scale_full = Method(
-            "pick_pillow_from_scale_full", pillow=type_item, size=type_size
+            "pick_pillow_from_scale_full",
+            pillow=type_item,
+            size=type_size,
+            status=type_status,
         )
         self.pick_pillow_from_scale_full.set_task(
             self.t_pick_pillow, self.pick_pillow_from_scale_full.pillow
@@ -208,15 +192,17 @@ class PEMUDomain(Bridge):
         self.pick_pillow_from_scale_full.add_precondition(self.perceived_pillow())
         self.pick_pillow_from_scale_full.add_precondition(self.item_size_known())
         self.pick_pillow_from_scale_full.add_precondition(self.pillow_status_known())
-        s1 = self.pick_pillow_from_scale_full.add_subtask(
+        self.pick_pillow_from_scale_full.add_precondition(
+            self.space_in_box(self.pick_pillow_from_scale_full.status)
+        )
+        self.pick_pillow_from_scale_full.add_precondition(
+            self.status_of_pillow(self.pick_pillow_from_scale_full.status)
+        )
+        self.pick_pillow_from_scale_full.add_subtask(
             self.pick_pillow,
             self.pick_pillow_from_scale_full.pillow,
             self.pick_pillow_from_scale_full.size,
         )
-        s2 = self.pick_pillow_from_scale_full.add_subtask(
-            self.move_arm, self.over_scale
-        )
-        self.pick_pillow_from_scale_full.set_ordered(s1, s2)
 
         # box is full
         self.pick_pillow_empty_box = Method(
@@ -228,6 +214,9 @@ class PEMUDomain(Bridge):
         self.pick_pillow_empty_box.add_precondition(self.pillow_status_known())
         self.pick_pillow_empty_box.add_precondition(
             Not(self.space_in_box(self.pick_pillow_empty_box.status))
+        )
+        self.pick_pillow_empty_box.add_precondition(
+            self.status_of_pillow(self.pick_pillow_empty_box.status)
         )
         self.pick_pillow_empty_box.add_subtask(
             self.empty_box, self.pick_pillow_empty_box.status
@@ -361,22 +350,22 @@ class PEMUDomain(Bridge):
         self.place_pillow_in_box_update.add_subtask(self.update_pemu_server)
 
         # pillow placed, move back to boxes, update server
-        self.place_pillow_in_box_move_arm = Method(
-            "place_pillow_in_box_move_arm", pillow=type_item
+        self.place_pillow_in_box_move_arm_1 = Method(
+            "place_pillow_in_box_move_arm_1", pillow=type_item
         )
-        self.place_pillow_in_box_move_arm.set_task(
-            self.t_place_pillow_in_box, self.place_pillow_in_box_move_arm.pillow
+        self.place_pillow_in_box_move_arm_1.set_task(
+            self.t_place_pillow_in_box, self.place_pillow_in_box_move_arm_1.pillow
         )
-        self.place_pillow_in_box_move_arm.add_precondition(
+        self.place_pillow_in_box_move_arm_1.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
-        self.place_pillow_in_box_move_arm.add_precondition(self.holding(self.nothing))
-        self.place_pillow_in_box_move_arm.add_precondition(self.pillow_in_box())
-        s1 = self.place_pillow_in_box_move_arm.add_subtask(
+        self.place_pillow_in_box_move_arm_1.add_precondition(self.holding(self.nothing))
+        self.place_pillow_in_box_move_arm_1.add_precondition(self.pillow_in_box())
+        s1 = self.place_pillow_in_box_move_arm_1.add_subtask(
             self.move_arm, self.over_boxes
         )
-        s2 = self.place_pillow_in_box_move_arm.add_subtask(self.update_pemu_server)
-        self.place_pillow_in_box_move_arm.set_ordered(s1, s2)
+        s2 = self.place_pillow_in_box_move_arm_1.add_subtask(self.update_pemu_server)
+        self.place_pillow_in_box_move_arm_1.set_ordered(s1, s2)
 
         # pillow in hand and over boxes, place in box, move back to boxes, update server
         self.place_pillow_in_box_place = Method(
@@ -406,7 +395,40 @@ class PEMUDomain(Bridge):
         s3 = self.place_pillow_in_box_place.add_subtask(self.update_pemu_server)
         self.place_pillow_in_box_place.set_ordered(s1, s2, s3)
 
-        # pillow in hand, move over boxes, place in box, move back to boxes, update server
+        # pillow in hand, hand over scale, move over boxes, place in box, move back to boxes, update server
+        self.place_pillow_in_box_move_arm_2 = Method(
+            "place_pillow_in_box_move_arm_2", pillow=type_item, status=type_status
+        )
+        self.place_pillow_in_box_move_arm_2.set_task(
+            self.t_place_pillow_in_box, self.place_pillow_in_box_move_arm_2.pillow
+        )
+        self.place_pillow_in_box_move_arm_2.add_precondition(
+            self.space_in_box(self.place_pillow_in_box_move_arm_2.status)
+        )
+        self.place_pillow_in_box_move_arm_2.add_precondition(
+            self.current_arm_pose(self.over_scale)
+        )
+        self.place_pillow_in_box_move_arm_2.add_precondition(
+            self.holding(self.place_pillow_in_box_move_arm_2.pillow)
+        )
+        self.place_pillow_in_box_move_arm_2.add_precondition(self.pillow_status_known())
+        self.place_pillow_in_box_move_arm_2.add_precondition(self.pillow_weight_known())
+        self.place_pillow_in_box_move_arm_2.add_precondition(Not(self.pillow_in_box()))
+        s1 = self.place_pillow_in_box_move_arm_2.add_subtask(
+            self.move_arm, self.over_boxes
+        )
+        s2 = self.place_pillow_in_box_move_arm_2.add_subtask(
+            self.place_pillow_in_box,
+            self.place_pillow_in_box_move_arm_2.pillow,
+            self.place_pillow_in_box_move_arm_2.status,
+        )
+        s3 = self.place_pillow_in_box_move_arm_2.add_subtask(
+            self.move_arm, self.over_boxes
+        )
+        s4 = self.place_pillow_in_box_move_arm_2.add_subtask(self.update_pemu_server)
+        self.place_pillow_in_box_move_arm_2.set_ordered(s1, s2, s3, s4)
+
+        # pillow in hand, move over scale then over boxes, place in box, move back to boxes, update server
         self.place_pillow_in_box_full = Method(
             "place_pillow_in_box_full", pillow=type_item, status=type_status
         )
@@ -417,7 +439,7 @@ class PEMUDomain(Bridge):
             self.space_in_box(self.place_pillow_in_box_full.status)
         )
         self.place_pillow_in_box_full.add_precondition(
-            self.current_arm_pose(self.over_scale)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.place_pillow_in_box_full.add_precondition(
             self.holding(self.place_pillow_in_box_full.pillow)
@@ -425,15 +447,16 @@ class PEMUDomain(Bridge):
         self.place_pillow_in_box_full.add_precondition(self.pillow_status_known())
         self.place_pillow_in_box_full.add_precondition(self.pillow_weight_known())
         self.place_pillow_in_box_full.add_precondition(Not(self.pillow_in_box()))
-        s1 = self.place_pillow_in_box_full.add_subtask(self.move_arm, self.over_boxes)
-        s2 = self.place_pillow_in_box_full.add_subtask(
+        s1 = self.place_pillow_in_box_full.add_subtask(self.move_arm, self.over_scale)
+        s2 = self.place_pillow_in_box_full.add_subtask(self.move_arm, self.over_boxes)
+        s3 = self.place_pillow_in_box_full.add_subtask(
             self.place_pillow_in_box,
             self.place_pillow_in_box_full.pillow,
             self.place_pillow_in_box_full.status,
         )
-        s3 = self.place_pillow_in_box_full.add_subtask(self.move_arm, self.over_boxes)
-        s4 = self.place_pillow_in_box_full.add_subtask(self.update_pemu_server)
-        self.place_pillow_in_box_full.set_ordered(s1, s2, s3, s4)
+        s4 = self.place_pillow_in_box_full.add_subtask(self.move_arm, self.over_boxes)
+        s5 = self.place_pillow_in_box_full.add_subtask(self.update_pemu_server)
+        self.place_pillow_in_box_full.set_ordered(s1, s2, s3, s4, s5)
 
         # RATE PILLOW
         # perceive the pillow to get the size
@@ -469,12 +492,8 @@ class PEMUDomain(Bridge):
             self.t_rate_pillow, self.rate_pillow_pick_scale.pillow
         )
         self.rate_pillow_pick_scale.add_precondition(self.item_size_known())
-        self.rate_pillow_pick_scale.add_precondition(
-            Or(
-                Not(self.holding(self.rate_pillow_pick_scale.pillow)),
-                self.pillow_on_scale(),
-            )
-        )
+        self.rate_pillow_pick_scale.add_precondition(self.perceived_pillow())
+        self.rate_pillow_pick_scale.add_precondition(self.pillow_on_scale())
         self.rate_pillow_pick_scale.add_precondition(self.pillow_weight_known())
         self.rate_pillow_pick_scale.add_precondition(self.pillow_status_known())
         self.rate_pillow_pick_scale.add_subtask(
@@ -509,7 +528,6 @@ class PEMUDomain(Bridge):
             self.pick_pillow_noop,
             self.pick_pillow_from_table_move_arm,
             self.pick_pillow_from_table_full,
-            self.pick_pillow_from_scale_move_arm,
             self.pick_pillow_from_scale_full,
             self.pick_pillow_empty_box,
             self.place_pillow_on_scale_noop,
@@ -520,7 +538,8 @@ class PEMUDomain(Bridge):
             self.inspect_pillow_inspect,
             self.inspect_pillow_full,
             self.place_pillow_in_box_update,
-            self.place_pillow_in_box_move_arm,
+            self.place_pillow_in_box_move_arm_1,
+            self.place_pillow_in_box_move_arm_2,
             self.place_pillow_in_box_place,
             self.place_pillow_in_box_full,
             self.rate_pillow_perceive,

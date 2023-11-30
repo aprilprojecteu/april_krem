@@ -210,7 +210,10 @@ class AprilPlanDispatcher:
                 )
                 plan_time = time.time() - plan_start_time
                 self._krem_logging.log_info(f"[Planning] Time: {plan_time}")
-                if plan is not None:
+                if plan is not None and plan.kind in [
+                    PlanKind.SEQUENTIAL_PLAN,
+                    PlanKind.HIERARCHICAL_PLAN,
+                ]:
                     # Convert to sequential plan for visualization and execution
                     plan = plan.convert_to(
                         PlanKind.SEQUENTIAL_PLAN, self._domain.problem
