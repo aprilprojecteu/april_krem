@@ -22,10 +22,10 @@ class ArmPose(Enum):
     unknown = "unknown"
     home = "home"
     over_passport = "over_passport"
-    take_out_passport = "take_out_passport"
     over_mrz = "over_mrz"
     over_chip = "over_chip"
     over_boxes = "over_boxes"
+    arm_up = "arm_up"
 
 
 class Status(Enum):
@@ -45,6 +45,7 @@ class Environment:
         self.used_mrz_reader = False
         self.used_chip_reader = False
         self.passport_status = None
+        self.detected_passport_corner = False
 
         self.box_status = {
             Status.ok: 1,
@@ -76,6 +77,7 @@ class Environment:
         self.used_mrz_reader = False
         self.used_chip_reader = False
         self.passport_status = None
+        self.detected_passport_corner = False
 
         self.box_status = {
             Status.ok: 1,
@@ -93,6 +95,7 @@ class Environment:
         self.used_mrz_reader = False
         self.used_chip_reader = False
         self.passport_status = None
+        self.detected_passport_corner = False
 
         self._perceived_objects.clear()
 
@@ -174,6 +177,9 @@ class Environment:
     def space_in_box(self, status: Status) -> bool:
         return self.box_status[status] < 3
 
+    def passport_corner_detected(self) -> bool:
+        return self.detected_passport_corner
+
 
 class Actions:
     def __init__(self, env: Environment):
@@ -207,17 +213,24 @@ class Actions:
 
         return result, msg
 
+    def detect_passport_corner(self):
+        _, passport_id = self._env.item_in_hand.rsplit("_", 1)
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "detect_passport_corner",
+            [str(passport_id)],
+            timeout=self._non_robot_actions_timeout,
+        )
+        if result:
+            self._env.detected_passport_corner = True
+
+        return result, msg
+
     def move_arm(self, arm_pose: ArmPose):
         result = False
         msg = "failed"
         if arm_pose == ArmPose.over_passport:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_passport_supports",
-                timeout=self._robot_actions_timeout,
-            )
-        elif arm_pose == ArmPose.take_out_passport:
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "take_out_passport",
                 timeout=self._robot_actions_timeout,
             )
         elif arm_pose == ArmPose.over_mrz:
@@ -238,6 +251,11 @@ class Actions:
         elif arm_pose == ArmPose.home:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_to_home_pose",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.arm_up:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_arm_up",
                 timeout=self._robot_actions_timeout,
             )
         if result:
@@ -315,13 +333,25 @@ class Actions:
                 self._env.arm_pose = ArmPose.unknown
                 self._env.box_status[self._env.passport_status] += 1
                 self._env.passport_status = None
-                self._env.used_mrz_reader = False
-                self._env.used_chip_reader = False
-                self._env._krem_logging.cycle_complete = True
-                self._env._perceived_objects.clear()
             return result, msg
         else:
             return False, "failed"
+
+    def move_arm_end(self):
+        result = False
+        msg = "failed"
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "move_over_boxes",
+            timeout=self._robot_actions_timeout,
+        )
+        if result:
+            self._env.arm_pose = ArmPose.over_boxes
+            self._env.used_mrz_reader = False
+            self._env.used_chip_reader = False
+            self._env.detected_passport_corner = False
+            self._env._krem_logging.cycle_complete = True
+            self._env._perceived_objects.clear()
+        return result, msg
 
     def empty_box(self, status: Status):
         self._env._krem_logging.wfhi_counter += 1
