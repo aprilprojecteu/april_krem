@@ -12,7 +12,7 @@ move_arm:
   replanning: false
   message: Could not move the arm.
 pick_case:
-  replanning: false
+  replanning: true
   message: Could not pick Case.
 place_case:
   replanning: false

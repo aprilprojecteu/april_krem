@@ -140,6 +140,15 @@ class PlanDispatcher:
                 self._plan_viz.succeed(self._node_id_to_action_map[succ_id])
                 executed_action_ids.append(succ_id)
 
+        if execution_status == "reset":
+            PlanDispatcher.change_state(KREM_STATE.CANCELED)
+            rospy.sleep(1)
+            if PlanDispatcher.DOMAIN is not None:
+                PlanDispatcher.DOMAIN.specific_domain._env.reset_env_keep_counters()
+            PlanDispatcher.wait_for_human_intervention_message(
+                "Gesture or press continue to continue cycle at beginning."
+            )
+
         if PlanDispatcher.STATE in [
             KREM_STATE.CANCELED,
             KREM_STATE.RESET,
@@ -271,7 +280,12 @@ class PlanDispatcher:
 
     @classmethod
     def run_symbolic_action(
-        cls, action_name: str, action_arguments=[], grasp_facts=[], timeout=0.0
+        cls,
+        action_name: str,
+        action_arguments=[],
+        grasp_facts=[],
+        timeout=0.0,
+        number_of_retries=2,
     ) -> Tuple[bool, str]:
         rate = rospy.Rate(10)
 
@@ -354,7 +368,7 @@ class PlanDispatcher:
                                 " action! Waiting for human intervention!\033[0m"
                             )
                             return (False, "error")
-                    if error_count < 2:
+                    if error_count < (number_of_retries):
                         error_count += 1
                         rospy.logwarn(
                             f"\033[93mDispatcherROS: Action {action_name} failed! Retrying...\033[0m"
@@ -362,7 +376,7 @@ class PlanDispatcher:
                         cls.HICEM_ACTION_SERVER.send_goal(run_symbolic_action_goal_msg)
                     else:
                         rospy.logwarn(
-                            f"\033[91mDispatcherROS: Action {action_name} failed 3 times!\033[0m"
+                            f"\033[91mDispatcherROS: Action {action_name} failed!\033[0m"
                         )
                         return (False, "failed")
             # Check if action timed out, cancel action, return failure

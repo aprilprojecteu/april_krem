@@ -1,6 +1,6 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
-from unified_planning.shortcuts import Not
+from unified_planning.shortcuts import Not, Or
 from april_krem.domains.OSAI_components import (
     Item,
     Size,
@@ -118,7 +118,12 @@ class OSAIDomain(Bridge):
         self.get_case_perceive = Method("get_case_perceive", case=type_item)
         self.get_case_perceive.set_task(self.t_get_case, self.get_case_perceive.case)
         self.get_case_perceive.add_precondition(self.item_in_fov())
-        self.get_case_perceive.add_precondition(self.current_arm_pose(self.home))
+        self.get_case_perceive.add_precondition(
+            Or(
+                self.current_arm_pose(self.home),
+                self.current_arm_pose(self.over_conveyor),
+            )
+        )
         self.get_case_perceive.add_precondition(Not(self.item_size_known()))
         self.get_case_perceive.add_subtask(self.perceive_case_on_conveyor)
 

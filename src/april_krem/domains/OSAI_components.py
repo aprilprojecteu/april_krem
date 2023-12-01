@@ -271,6 +271,8 @@ class Actions:
             "~robot_actions_timeout", default="120"
         )
 
+        self._pick_case_failures = 0
+
     def get_next_case(self):
         result, msg = PlanDispatcher.run_symbolic_action(
             "get_next_case",
@@ -377,12 +379,22 @@ class Actions:
                 [str(id)],
                 grasp_facts.grasp_strategies,
                 timeout=self._robot_actions_timeout,
+                number_of_retries=0,
             )
             if result:
                 self._env.holding_item = Item.case
                 self._env.item_in_hand = class_name + "_" + str(id)
                 self._env.case_available = False
                 self._env.arm_pose = ArmPose.unknown
+            else:
+                if self._pick_case_failures > 1:
+                    self._pick_case_failures = 0
+                    return False, "reset"
+                over_conveyor_result, _ = self.move_arm(ArmPose.over_conveyor)
+                if over_conveyor_result:
+                    # if successful, reset item_size to perceive again
+                    self._env.item_size = None
+                self._pick_case_failures += 1
             return result, msg
         return False, "failed"
 
