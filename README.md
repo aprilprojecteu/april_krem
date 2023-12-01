@@ -32,4 +32,4 @@ The following metrics are logged:
 - Execution time of performed actions in seconds
 - Execution time of each cycle in seconds
 - Number of cycles done
-- Overall exection time of all cycles in seconds
+- Overall execution time of all cycles in seconds
