@@ -317,6 +317,7 @@ class Actions:
         return result, msg
 
     def perceive_set(self):
+        self._env._clear_item_type("set")
         result, msg = PlanDispatcher.run_symbolic_action(
             "perceive_set",
             timeout=self._non_robot_actions_timeout,
