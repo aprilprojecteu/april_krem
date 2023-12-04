@@ -470,8 +470,7 @@ class Actions:
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def place_set_in_box(self, set: Item, status: Status):
         # arguments: [item class, which box(ok or nok)]
@@ -492,8 +491,7 @@ class Actions:
                 self._env.arm_pose = ArmPose.unknown
                 self._env.box_status[self._env.set_status] += 1
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def insert(self, insert: Item, case: Item, size: Size):
         if self._env.item_in_hand is not None and self._env.placed_case is not None:
@@ -516,8 +514,7 @@ class Actions:
                     self._env.inserted = True
                     self._env.case_on_fixture_perceived = False
                 return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def inspect(self):
         result, msg = PlanDispatcher.run_symbolic_action(
