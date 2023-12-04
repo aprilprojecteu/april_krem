@@ -306,7 +306,11 @@ class Actions:
             timeout=self._non_robot_actions_timeout,
         )
         if result:
-            self._env.case_on_fixture_perceived = True
+            type, _ = self._env._get_item_type_and_id("case")
+            if type is not None and self._env.item_size.value in type:
+                self._env.case_on_fixture_perceived = True
+            else:
+                return False, "failed"
         return result, msg
 
     def perceive_insert(self):
@@ -325,7 +329,12 @@ class Actions:
             timeout=self._non_robot_actions_timeout,
         )
         if result:
-            self._env.set_perceived = True
+            type, _ = self._env._get_item_type_and_id("set")
+            if type is not None and self._env.item_size.value in type:
+                self._env.set_perceived = True
+            else:
+                return False, "failed"
+
         return result, msg
 
     def move_arm(self, arm_pose: ArmPose):
