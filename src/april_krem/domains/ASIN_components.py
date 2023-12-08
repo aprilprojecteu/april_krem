@@ -337,8 +337,7 @@ class Actions:
                 self._env.chicken_in_fov = False
                 self._env.arm_pose = ArmPose.unknown
             return result, msg
-        else:
-            return False
+        return False, "failed"
 
     def perceive_trays(self):
         # self._env._clear_item_type("tray")

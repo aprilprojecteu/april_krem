@@ -270,8 +270,7 @@ class Actions:
                 self._env.pillow_perceived = False
                 self._env.pillow_is_on_scale = False
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def place_pillow_on_scale(self, pillow: Item, size: Size):
         # arguments: [ID of pillow]
@@ -288,8 +287,7 @@ class Actions:
                 self._env.arm_pose = ArmPose.unknown
                 self._env.pillow_is_on_scale = True
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def weigh_pillow(self):
         result, msg = PlanDispatcher.run_symbolic_action(
@@ -325,8 +323,7 @@ class Actions:
                 self._env._krem_logging.cycle_complete = True
                 self._env._perceived_objects.clear()
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def inspect(self):
         result, msg = PlanDispatcher.run_symbolic_action(

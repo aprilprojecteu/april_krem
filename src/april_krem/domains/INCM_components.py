@@ -210,7 +210,6 @@ class Actions:
             type, _ = self._env._get_item_type_and_id("passport")
             if type:
                 self._env.passport_perceived = True
-
         return result, msg
 
     def detect_passport_corner(self):
@@ -279,8 +278,7 @@ class Actions:
                 self._env.arm_pose = ArmPose.unknown
                 self._env.passport_perceived = False
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def read_mrz(self, passport: Item):
         if self._env.item_in_hand is not None:
@@ -293,8 +291,7 @@ class Actions:
                 self._env.used_mrz_reader = True
                 self._env.arm_pose = ArmPose.unknown
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def read_chip(self, passport: Item):
         if self._env.item_in_hand is not None:
@@ -307,8 +304,7 @@ class Actions:
                 self._env.used_chip_reader = True
                 self._env.arm_pose = ArmPose.unknown
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def inspect(self, passport: Item):
         result, msg = PlanDispatcher.run_symbolic_action(
@@ -334,8 +330,7 @@ class Actions:
                 self._env.box_status[self._env.passport_status] += 1
                 self._env.passport_status = None
             return result, msg
-        else:
-            return False, "failed"
+        return False, "failed"
 
     def move_arm_end(self):
         result = False
