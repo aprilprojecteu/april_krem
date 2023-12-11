@@ -240,6 +240,8 @@ class PlanDispatcher:
             '\033[92mDispatcherROS: Dispatching action "move_to_home_pose"\033[0m'
         )
 
+        start_time = rospy.get_rostime().to_sec()
+
         cls.HICEM_ACTION_SERVER.send_goal(home_pose_action_msg)
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
@@ -250,7 +252,21 @@ class PlanDispatcher:
                     return True
                 else:
                     return False
+            if rospy.get_rostime().to_sec() - start_time > 120.0:
+                rospy.logwarn("Moving to home pose timed out after 120 seconds!")
+                cls.HICEM_ACTION_SERVER.cancel_all_goals()
+                break
+            if cls.STATE in [
+                KREM_STATE.ERROR,
+                KREM_STATE.TIMEOUT,
+                KREM_STATE.RESET,
+                KREM_STATE.CANCELED,
+                KREM_STATE.PAUSED,
+            ]:
+                break
+
             rate.sleep()
+        return False
 
     @classmethod
     def change_state(cls, state):
