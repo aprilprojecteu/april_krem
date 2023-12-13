@@ -329,24 +329,13 @@ class Actions:
                 self._env.arm_pose = ArmPose.unknown
                 self._env.box_status[self._env.passport_status] += 1
                 self._env.passport_status = None
+                self._env.used_mrz_reader = False
+                self._env.used_chip_reader = False
+                self._env.detected_passport_corner = False
+                self._env._krem_logging.cycle_complete = True
+                self._env._perceived_objects.clear()
             return result, msg
         return False, "failed"
-
-    def move_arm_end(self):
-        result = False
-        msg = "failed"
-        result, msg = PlanDispatcher.run_symbolic_action(
-            "move_over_boxes",
-            timeout=self._robot_actions_timeout,
-        )
-        if result:
-            self._env.arm_pose = ArmPose.over_boxes
-            self._env.used_mrz_reader = False
-            self._env.used_chip_reader = False
-            self._env.detected_passport_corner = False
-            self._env._krem_logging.cycle_complete = True
-            self._env._perceived_objects.clear()
-        return result, msg
 
     def empty_box(self, status: Status):
         self._env._krem_logging.wfhi_counter += 1

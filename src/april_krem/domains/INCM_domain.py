@@ -55,6 +55,7 @@ class INCMDomain(Bridge):
 
         self.create_enum_objects(ArmPose)
         self.unknown_pose = self.objects[ArmPose.unknown.name]
+        self.home = self.objects[ArmPose.home.name]
         self.over_passport = self.objects[ArmPose.over_passport.name]
         self.over_mrz = self.objects[ArmPose.over_mrz.name]
         self.over_chip = self.objects[ArmPose.over_chip.name]
@@ -171,23 +172,43 @@ class INCMDomain(Bridge):
         self.get_passport_perceive.set_ordered(s1, s2, s3, s4)
 
         # move arm over passport, perceive passport, pick it up, move arm over passport
+        self.get_passport_move_arm_2 = Method(
+            "get_passport_move_arm_2", passport=type_item
+        )
+        self.get_passport_move_arm_2.set_task(
+            self.t_get_passport, self.get_passport_move_arm_2.passport
+        )
+        self.get_passport_move_arm_2.add_precondition(self.current_arm_pose(self.home))
+        self.get_passport_move_arm_2.add_precondition(self.holding(self.nothing))
+        self.get_passport_move_arm_2.add_precondition(
+            Not(self.passport_corner_detected())
+        )
+        s1 = self.get_passport_move_arm_2.add_subtask(self.move_arm, self.over_passport)
+        s2 = self.get_passport_move_arm_2.add_subtask(self.perceive_passport)
+        s3 = self.get_passport_move_arm_2.add_subtask(
+            self.pick_passport, self.get_passport_move_arm_2.passport
+        )
+        s4 = self.get_passport_move_arm_2.add_subtask(self.move_arm, self.arm_up)
+        s5 = self.get_passport_move_arm_2.add_subtask(self.detect_passport_corner)
+        self.get_passport_move_arm_2.set_ordered(s1, s2, s3, s4, s5)
+
+        # move arm over passport, perceive passport, pick it up, move arm over passport
         self.get_passport_full = Method("get_passport_full", passport=type_item)
         self.get_passport_full.set_task(
             self.t_get_passport, self.get_passport_full.passport
         )
-        self.get_passport_full.add_precondition(
-            Not(self.current_arm_pose(self.over_passport))
-        )
+        self.get_passport_full.add_precondition(Not(self.current_arm_pose(self.home)))
         self.get_passport_full.add_precondition(self.holding(self.nothing))
         self.get_passport_full.add_precondition(Not(self.passport_corner_detected()))
-        s1 = self.get_passport_full.add_subtask(self.move_arm, self.over_passport)
-        s2 = self.get_passport_full.add_subtask(self.perceive_passport)
-        s3 = self.get_passport_full.add_subtask(
+        s1 = self.get_passport_full.add_subtask(self.move_arm, self.home)
+        s2 = self.get_passport_full.add_subtask(self.move_arm, self.over_passport)
+        s3 = self.get_passport_full.add_subtask(self.perceive_passport)
+        s4 = self.get_passport_full.add_subtask(
             self.pick_passport, self.get_passport_full.passport
         )
-        s4 = self.get_passport_full.add_subtask(self.move_arm, self.arm_up)
-        s5 = self.get_passport_full.add_subtask(self.detect_passport_corner)
-        self.get_passport_full.set_ordered(s1, s2, s3, s4, s5)
+        s5 = self.get_passport_full.add_subtask(self.move_arm, self.arm_up)
+        s6 = self.get_passport_full.add_subtask(self.detect_passport_corner)
+        self.get_passport_full.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # READ MRZ AND CHIP
         # already read chip, arm in position
@@ -197,27 +218,12 @@ class INCMDomain(Bridge):
         )
         self.read_mrz_chip_noop.add_precondition(self.chip_reader_used())
         self.read_mrz_chip_noop.add_precondition(self.mrz_reader_used())
-        self.read_mrz_chip_noop.add_precondition(self.current_arm_pose(self.over_chip))
+        self.read_mrz_chip_noop.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.read_mrz_chip_noop.add_precondition(
             self.holding(self.read_mrz_chip_noop.passport)
         )
-
-        # already read chip, move arm
-        self.read_mrz_chip_move_arm_1 = Method(
-            "read_mrz_chip_move_arm_1", passport=type_item
-        )
-        self.read_mrz_chip_move_arm_1.set_task(
-            self.t_read_mrz_chip, self.read_mrz_chip_move_arm_1.passport
-        )
-        self.read_mrz_chip_move_arm_1.add_precondition(self.chip_reader_used())
-        self.read_mrz_chip_move_arm_1.add_precondition(self.mrz_reader_used())
-        self.read_mrz_chip_move_arm_1.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.read_mrz_chip_move_arm_1.add_precondition(
-            self.holding(self.read_mrz_chip_move_arm_1.passport)
-        )
-        self.read_mrz_chip_move_arm_1.add_subtask(self.move_arm, self.over_chip)
 
         # arm at chip reader, read chip
         self.read_mrz_chip_read_chip = Method(
@@ -234,13 +240,11 @@ class INCMDomain(Bridge):
         self.read_mrz_chip_read_chip.add_precondition(
             self.holding(self.read_mrz_chip_read_chip.passport)
         )
-        s1 = self.read_mrz_chip_read_chip.add_subtask(
+        self.read_mrz_chip_read_chip.add_subtask(
             self.read_chip, self.read_mrz_chip_read_chip.passport
         )
-        s2 = self.read_mrz_chip_read_chip.add_subtask(self.move_arm, self.over_chip)
-        self.read_mrz_chip_read_chip.set_ordered(s1, s2)
 
-        # already read mrz, moved arm over mrz, move arm over chip and read chip
+        # already read mrz, move arm over chip and read chip
         self.read_mrz_chip_move_arm_2 = Method(
             "read_mrz_chip_move_arm_2", passport=type_item
         )
@@ -250,7 +254,7 @@ class INCMDomain(Bridge):
         self.read_mrz_chip_move_arm_2.add_precondition(self.mrz_reader_used())
         self.read_mrz_chip_move_arm_2.add_precondition(Not(self.chip_reader_used()))
         self.read_mrz_chip_move_arm_2.add_precondition(
-            self.current_arm_pose(self.over_mrz)
+            self.current_arm_pose(self.unknown_pose)
         )
         self.read_mrz_chip_move_arm_2.add_precondition(
             self.holding(self.read_mrz_chip_move_arm_2.passport)
@@ -259,31 +263,7 @@ class INCMDomain(Bridge):
         s2 = self.read_mrz_chip_move_arm_2.add_subtask(
             self.read_chip, self.read_mrz_chip_move_arm_2.passport
         )
-        s3 = self.read_mrz_chip_move_arm_2.add_subtask(self.move_arm, self.over_chip)
-        self.read_mrz_chip_move_arm_2.set_ordered(s1, s2, s3)
-
-        # already read mrz, move arm and read chip
-        self.read_mrz_chip_move_arm_3 = Method(
-            "read_mrz_chip_move_arm_3", passport=type_item
-        )
-        self.read_mrz_chip_move_arm_3.set_task(
-            self.t_read_mrz_chip, self.read_mrz_chip_move_arm_3.passport
-        )
-        self.read_mrz_chip_move_arm_3.add_precondition(self.mrz_reader_used())
-        self.read_mrz_chip_move_arm_3.add_precondition(Not(self.chip_reader_used()))
-        self.read_mrz_chip_move_arm_3.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.read_mrz_chip_move_arm_3.add_precondition(
-            self.holding(self.read_mrz_chip_move_arm_3.passport)
-        )
-        s1 = self.read_mrz_chip_move_arm_3.add_subtask(self.move_arm, self.over_mrz)
-        s2 = self.read_mrz_chip_move_arm_3.add_subtask(self.move_arm, self.over_chip)
-        s3 = self.read_mrz_chip_move_arm_3.add_subtask(
-            self.read_chip, self.read_mrz_chip_move_arm_3.passport
-        )
-        s4 = self.read_mrz_chip_move_arm_3.add_subtask(self.move_arm, self.over_chip)
-        self.read_mrz_chip_move_arm_3.set_ordered(s1, s2, s3, s4)
+        self.read_mrz_chip_move_arm_2.set_ordered(s1, s2)
 
         # arm over mrz, read mrz and chip
         self.read_mrz_chip_read_mrz = Method(
@@ -303,13 +283,11 @@ class INCMDomain(Bridge):
         s1 = self.read_mrz_chip_read_mrz.add_subtask(
             self.read_mrz, self.read_mrz_chip_read_mrz.passport
         )
-        s2 = self.read_mrz_chip_read_mrz.add_subtask(self.move_arm, self.over_mrz)
-        s3 = self.read_mrz_chip_read_mrz.add_subtask(self.move_arm, self.over_chip)
-        s4 = self.read_mrz_chip_read_mrz.add_subtask(
+        s2 = self.read_mrz_chip_read_mrz.add_subtask(self.move_arm, self.over_chip)
+        s3 = self.read_mrz_chip_read_mrz.add_subtask(
             self.read_chip, self.read_mrz_chip_read_mrz.passport
         )
-        s5 = self.read_mrz_chip_read_mrz.add_subtask(self.move_arm, self.over_chip)
-        self.read_mrz_chip_read_mrz.set_ordered(s1, s2, s3, s4, s5)
+        self.read_mrz_chip_read_mrz.set_ordered(s1, s2, s3)
 
         # passport in hand, read mrz and chip
         self.read_mrz_chip_full = Method("read_mrz_chip_full", passport=type_item)
@@ -326,31 +304,13 @@ class INCMDomain(Bridge):
         s2 = self.read_mrz_chip_full.add_subtask(
             self.read_mrz, self.read_mrz_chip_full.passport
         )
-        s3 = self.read_mrz_chip_full.add_subtask(self.move_arm, self.over_mrz)
-        s4 = self.read_mrz_chip_full.add_subtask(self.move_arm, self.over_chip)
-        s5 = self.read_mrz_chip_full.add_subtask(
+        s3 = self.read_mrz_chip_full.add_subtask(self.move_arm, self.over_chip)
+        s4 = self.read_mrz_chip_full.add_subtask(
             self.read_chip, self.read_mrz_chip_full.passport
         )
-        s6 = self.read_mrz_chip_full.add_subtask(self.move_arm, self.over_chip)
-        self.read_mrz_chip_full.set_ordered(s1, s2, s3, s4, s5, s6)
+        self.read_mrz_chip_full.set_ordered(s1, s2, s3, s4)
 
         # PLACE PASSPORT
-        # already placed passport, move arm
-        self.place_passport_move_arm = Method(
-            "place_passport_move_arm", passport=type_item, status=type_status
-        )
-        self.place_passport_move_arm.set_task(
-            self.t_place_passport, self.place_passport_move_arm.passport
-        )
-        self.place_passport_move_arm.add_precondition(Not(self.passport_status_known()))
-        self.place_passport_move_arm.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.place_passport_move_arm.add_precondition(self.holding(self.nothing))
-        self.place_passport_move_arm.add_precondition(self.mrz_reader_used())
-        self.place_passport_move_arm.add_precondition(self.chip_reader_used())
-        self.place_passport_move_arm.add_subtask(self.move_arm_end)
-
         # arm in position, place passport
         self.place_passport_place = Method(
             "place_passport_place", passport=type_item, status=type_status
@@ -368,13 +328,12 @@ class INCMDomain(Bridge):
         self.place_passport_place.add_precondition(
             self.holding(self.place_passport_place.passport)
         )
-        s1 = self.place_passport_place.add_subtask(
+        self.place_passport_place.add_subtask(
             self.place_passport_in_box,
             self.place_passport_place.passport,
             self.place_passport_place.status,
         )
-        s2 = self.place_passport_place.add_subtask(self.move_arm_end)
-        self.place_passport_place.set_ordered(s1, s2)
+        self.place_passport_place.set_ordered(s1)
 
         # already read chip, arm in position
         self.place_passport_full = Method(
@@ -387,7 +346,9 @@ class INCMDomain(Bridge):
         self.place_passport_full.add_precondition(
             self.space_in_box(self.place_passport_full.status)
         )
-        self.place_passport_full.add_precondition(self.current_arm_pose(self.over_chip))
+        self.place_passport_full.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.place_passport_full.add_precondition(
             self.holding(self.place_passport_full.passport)
         )
@@ -397,8 +358,7 @@ class INCMDomain(Bridge):
             self.place_passport_full.passport,
             self.place_passport_full.status,
         )
-        s3 = self.place_passport_full.add_subtask(self.move_arm_end)
-        self.place_passport_full.set_ordered(s1, s2, s3)
+        self.place_passport_full.set_ordered(s1, s2)
 
         # box is full
         self.place_passport_empty_box = Method(
@@ -452,15 +412,13 @@ class INCMDomain(Bridge):
             self.get_passport_move_arm_1,
             self.get_passport_pick,
             self.get_passport_perceive,
+            self.get_passport_move_arm_2,
             self.get_passport_full,
             self.read_mrz_chip_noop,
-            self.read_mrz_chip_move_arm_1,
             self.read_mrz_chip_read_mrz,
             self.read_mrz_chip_move_arm_2,
-            self.read_mrz_chip_move_arm_3,
             self.read_mrz_chip_read_chip,
             self.read_mrz_chip_full,
-            self.place_passport_move_arm,
             self.place_passport_place,
             self.place_passport_full,
             self.place_passport_empty_box,
@@ -572,14 +530,11 @@ class INCMDomain(Bridge):
                 self.current_arm_pose(self.unknown_pose), True
             )
             self.place_passport_in_box.add_effect(self.passport_status_known(), False)
-
-            self.move_arm_end, _ = self.create_action(
-                "move_arm_end", _callable=actions.move_arm_end
+            self.place_passport_in_box.add_effect(self.mrz_reader_used(), False)
+            self.place_passport_in_box.add_effect(self.chip_reader_used(), False)
+            self.place_passport_in_box.add_effect(
+                self.passport_corner_detected(), False
             )
-            self.move_arm_end.add_effect(self.current_arm_pose(self.over_boxes), True)
-            self.move_arm_end.add_effect(self.mrz_reader_used(), False)
-            self.move_arm_end.add_effect(self.chip_reader_used(), False)
-            self.move_arm_end.add_effect(self.passport_corner_detected(), False)
 
             self.empty_box, [s] = self.create_action(
                 "empty_box",
