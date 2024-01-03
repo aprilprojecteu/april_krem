@@ -5,9 +5,12 @@ move_arm:
 pick_pillow:
   replanning: false
   message: Could not pick up the Pillow.
-perceive_pillow:
+perceive_pillow_on_table:
   replanning: false
-  message: Could not detect the Pillow.
+  message: Could not detect the Pillow on Table.
+perceive_pillow_on_scale:
+  replanning: false
+  message: Could not detect the Pillow on Scale.
 place_pillow_on_scale:
   replanning: false
   message: Could not place Pillow on scale.
