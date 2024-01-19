@@ -184,6 +184,7 @@ class Environment:
 class Actions:
     def __init__(self, env: Environment):
         self._env = env
+        self._sliding_fails = 0
 
         # Grasp Library
         rospy.loginfo("Waiting for Grasp Library Service...")
@@ -293,7 +294,11 @@ class Actions:
                 self._env.used_mrz_reader = True
                 self._env.arm_pose = ArmPose.unknown
             else:
-                self._env.detected_passport_corner = False            
+                if self._sliding_fails >= 2:
+                    self._sliding_fails = 0
+                    return False, "wait_for_human_intervention"
+                self._sliding_fails += 1
+                self._env.detected_passport_corner = False   
             return result, msg
         return False, "failed"
 

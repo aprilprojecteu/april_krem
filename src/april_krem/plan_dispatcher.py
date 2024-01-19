@@ -164,6 +164,8 @@ class PlanDispatcher:
                 message = self._acb_display_text.get(failed_actions[0], {}).get(
                     "message", "UNKNOWN ERROR"
                 )
+                if execution_status == "wait_for_human_intervention":
+                    replanning = False
                 if replanning:
                     PlanDispatcher.KREM_LOGGING.error_replan_counter += 1
                     rospy.loginfo(message)
