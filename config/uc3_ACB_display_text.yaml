@@ -15,7 +15,7 @@ place_passport_in_box:
   replanning: false
   message: Could not place Passport in box.
 read_mrz:
-  replanning: false
+  replanning: true
   message: Could not read MRZ.
 read_chip:
   replanning: false

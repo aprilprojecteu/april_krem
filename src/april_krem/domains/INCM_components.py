@@ -221,6 +221,7 @@ class Actions:
         )
         if result:
             self._env.detected_passport_corner = True
+            self._env.arm_pose = ArmPose.unknown
 
         return result, msg
 
@@ -286,10 +287,13 @@ class Actions:
                 "read_mrz",
                 [],
                 timeout=self._robot_actions_timeout,
+                number_of_retries=0
             )
             if result:
                 self._env.used_mrz_reader = True
                 self._env.arm_pose = ArmPose.unknown
+            else:
+                self._env.detected_passport_corner = False            
             return result, msg
         return False, "failed"
 

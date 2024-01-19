@@ -1,6 +1,6 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
-from unified_planning.shortcuts import Not
+from unified_planning.shortcuts import Not, Or
 from april_krem.domains.INCM_components import (
     Item,
     ArmPose,
@@ -103,7 +103,7 @@ class INCMDomain(Bridge):
             self.t_get_passport, self.get_passport_detect_corner.passport
         )
         self.get_passport_detect_corner.add_precondition(
-            self.current_arm_pose(self.arm_up)
+            Or(self.current_arm_pose(self.arm_up), self.current_arm_pose(self.over_mrz))
         )
         self.get_passport_detect_corner.add_precondition(
             self.holding(self.get_passport_detect_corner.passport)
@@ -296,7 +296,9 @@ class INCMDomain(Bridge):
         )
         self.read_mrz_chip_full.add_precondition(Not(self.mrz_reader_used()))
         self.read_mrz_chip_full.add_precondition(Not(self.chip_reader_used()))
-        self.read_mrz_chip_full.add_precondition(self.current_arm_pose(self.arm_up))
+        self.read_mrz_chip_full.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
         self.read_mrz_chip_full.add_precondition(
             self.holding(self.read_mrz_chip_full.passport)
         )
@@ -448,6 +450,15 @@ class INCMDomain(Bridge):
             )
             self.detect_passport_corner.add_effect(
                 self.passport_corner_detected(), True
+            )
+            self.detect_passport_corner.add_effect(
+                self.current_arm_pose(self.unknown_pose), True
+            )
+            self.detect_passport_corner.add_effect(
+                self.current_arm_pose(self.over_mrz), False
+            )
+            self.detect_passport_corner.add_effect(
+                self.current_arm_pose(self.arm_up), False
             )
 
             self.move_arm, [a] = self.create_action(
