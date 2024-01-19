@@ -47,6 +47,7 @@ class INCMDomain(Bridge):
         self.passport_corner_detected = self.create_fluent_from_function(
             self._env.passport_corner_detected
         )
+        self.passports_available = self.create_fluent_from_function(self._env.passports_available)
 
         # Create objects for both planning and execution
         self.create_enum_objects(Item)
@@ -387,6 +388,7 @@ class INCMDomain(Bridge):
             self.t_scan_passport, self.scan_passport_get.passport
         )
         self.scan_passport_get.add_precondition(Not(self.passport_status_known()))
+        self.scan_passport_get.add_precondition(self.passports_available())
         s1 = self.scan_passport_get.add_subtask(
             self.t_get_passport, self.scan_passport_get.passport
         )
@@ -408,6 +410,12 @@ class INCMDomain(Bridge):
             self.scan_passport_place.passport,
         )
 
+        # no passports in passport supports refill_passports
+        self.scan_passport_refill = Method("scan_passport_refill", passport=type_item)
+        self.scan_passport_refill.set_task(self.t_scan_passport, self.scan_passport_refill.passport)
+        self.scan_passport_refill.add_precondition(Not(self.passports_available()))
+        self.scan_passport_refill.add_subtask(self.refill_passports)
+
         self.methods = (
             self.get_passport_noop,
             self.get_passport_detect_corner,
@@ -426,6 +434,7 @@ class INCMDomain(Bridge):
             self.place_passport_empty_box,
             self.scan_passport_get,
             self.scan_passport_place,
+            self.scan_passport_refill,
         )
 
     def _create_domain_actions(self, temporal: bool = False) -> None:
@@ -555,6 +564,13 @@ class INCMDomain(Bridge):
             self.empty_box.add_precondition(Not(self.space_in_box(s)))
             self.empty_box.add_precondition(self.passport_status_known())
             self.empty_box.add_effect(self.space_in_box(s), True)
+
+            self.refill_passports, [] = self.create_action(
+                "refill_passports",
+                _callable=actions.refill_passports,
+            )
+            self.refill_passports.add_precondition(Not(self.passports_available()))
+            self.refill_passports.add_effect(self.passports_available(), True)
 
     def set_state_and_goal(self, problem, goal=None) -> None:
         success = True

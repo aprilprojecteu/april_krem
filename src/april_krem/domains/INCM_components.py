@@ -46,6 +46,7 @@ class Environment:
         self.used_chip_reader = False
         self.passport_status = None
         self.detected_passport_corner = False
+        self.available_passports = 2
 
         self.box_status = {
             Status.ok: 1,
@@ -78,6 +79,7 @@ class Environment:
         self.used_chip_reader = False
         self.passport_status = None
         self.detected_passport_corner = False
+        self.available_passports = 2
 
         self.box_status = {
             Status.ok: 1,
@@ -175,10 +177,13 @@ class Environment:
         return self.used_chip_reader
 
     def space_in_box(self, status: Status) -> bool:
-        return self.box_status[status] < 3
+        return self.box_status[status] < 7
 
     def passport_corner_detected(self) -> bool:
         return self.detected_passport_corner
+    
+    def passports_available(self) -> bool:
+        return self.available_passports > 0
 
 
 class Actions:
@@ -341,13 +346,13 @@ class Actions:
                 self._env.used_mrz_reader = False
                 self._env.used_chip_reader = False
                 self._env.detected_passport_corner = False
+                self._env.available_passports -= 1
                 self._env._krem_logging.cycle_complete = True
                 self._env._perceived_objects.clear()
             return result, msg
         return False, "failed"
 
     def empty_box(self, status: Status):
-        self._env._krem_logging.wfhi_counter += 1
         result, msg = PlanDispatcher.run_symbolic_action(
             "wait_for_human_intervention",
             [f"{status.value} box is full. Empty box."],
@@ -356,3 +361,14 @@ class Actions:
         if result:
             self._env.box_status[status] = 1
         return result, msg
+    
+    def refill_passports(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "wait_for_human_intervention",
+            [f"Place new passports in passport supports."],
+            timeout=0.0,
+        )
+        if result:
+            self._env.available_passports = 2
+        return result, msg
+
