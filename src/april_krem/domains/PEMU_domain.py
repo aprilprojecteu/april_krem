@@ -1,7 +1,7 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
 
-from unified_planning.shortcuts import Not, Or, And
+from unified_planning.shortcuts import Not
 from april_krem.domains.PEMU_components import (
     Item,
     ArmPose,

@@ -1,6 +1,6 @@
 ---
 perceive_passport:
-  replanning: false
+  replanning: True
   message: No Passport detected on support.
 move_arm:
   replanning: false

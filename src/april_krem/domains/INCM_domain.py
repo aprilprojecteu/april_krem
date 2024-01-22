@@ -47,7 +47,9 @@ class INCMDomain(Bridge):
         self.passport_corner_detected = self.create_fluent_from_function(
             self._env.passport_corner_detected
         )
-        self.passports_available = self.create_fluent_from_function(self._env.passports_available)
+        self.passport_is_available = self.create_fluent_from_function(
+            self._env.passport_is_available
+        )
 
         # Create objects for both planning and execution
         self.create_enum_objects(Item)
@@ -145,6 +147,7 @@ class INCMDomain(Bridge):
         self.get_passport_pick.add_precondition(self.holding(self.nothing))
         self.get_passport_pick.add_precondition(self.perceived_passport())
         self.get_passport_pick.add_precondition(Not(self.passport_corner_detected()))
+        self.get_passport_pick.add_precondition(self.passport_is_available())
         s1 = self.get_passport_pick.add_subtask(
             self.pick_passport, self.get_passport_pick.passport
         )
@@ -153,26 +156,6 @@ class INCMDomain(Bridge):
         self.get_passport_pick.set_ordered(s1, s2, s3)
 
         # perceive passport, pick it up
-        self.get_passport_perceive = Method("get_passport_perceive", passport=type_item)
-        self.get_passport_perceive.set_task(
-            self.t_get_passport, self.get_passport_perceive.passport
-        )
-        self.get_passport_perceive.add_precondition(
-            self.current_arm_pose(self.over_passport)
-        )
-        self.get_passport_perceive.add_precondition(self.holding(self.nothing))
-        self.get_passport_perceive.add_precondition(
-            Not(self.passport_corner_detected())
-        )
-        s1 = self.get_passport_perceive.add_subtask(self.perceive_passport)
-        s2 = self.get_passport_perceive.add_subtask(
-            self.pick_passport, self.get_passport_perceive.passport
-        )
-        s3 = self.get_passport_perceive.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.get_passport_perceive.add_subtask(self.detect_passport_corner)
-        self.get_passport_perceive.set_ordered(s1, s2, s3, s4)
-
-        # move arm over passport, perceive passport, pick it up, move arm over passport
         self.get_passport_move_arm_2 = Method(
             "get_passport_move_arm_2", passport=type_item
         )
@@ -184,14 +167,33 @@ class INCMDomain(Bridge):
         self.get_passport_move_arm_2.add_precondition(
             Not(self.passport_corner_detected())
         )
+        self.get_passport_move_arm_2.add_precondition(self.perceived_passport())
         s1 = self.get_passport_move_arm_2.add_subtask(self.move_arm, self.over_passport)
-        s2 = self.get_passport_move_arm_2.add_subtask(self.perceive_passport)
-        s3 = self.get_passport_move_arm_2.add_subtask(
+        s2 = self.get_passport_move_arm_2.add_subtask(
             self.pick_passport, self.get_passport_move_arm_2.passport
         )
-        s4 = self.get_passport_move_arm_2.add_subtask(self.move_arm, self.arm_up)
-        s5 = self.get_passport_move_arm_2.add_subtask(self.detect_passport_corner)
-        self.get_passport_move_arm_2.set_ordered(s1, s2, s3, s4, s5)
+        s3 = self.get_passport_move_arm_2.add_subtask(self.move_arm, self.arm_up)
+        s4 = self.get_passport_move_arm_2.add_subtask(self.detect_passport_corner)
+        self.get_passport_move_arm_2.set_ordered(s1, s2, s3, s4)
+
+        # move arm over passport, perceive passport, pick it up, move arm over passport
+        self.get_passport_perceive = Method("get_passport_perceive", passport=type_item)
+        self.get_passport_perceive.set_task(
+            self.t_get_passport, self.get_passport_perceive.passport
+        )
+        self.get_passport_perceive.add_precondition(self.current_arm_pose(self.home))
+        self.get_passport_perceive.add_precondition(self.holding(self.nothing))
+        self.get_passport_perceive.add_precondition(
+            Not(self.passport_corner_detected())
+        )
+        s1 = self.get_passport_perceive.add_subtask(self.perceive_passport)
+        s2 = self.get_passport_perceive.add_subtask(self.move_arm, self.over_passport)
+        s3 = self.get_passport_perceive.add_subtask(
+            self.pick_passport, self.get_passport_perceive.passport
+        )
+        s4 = self.get_passport_perceive.add_subtask(self.move_arm, self.arm_up)
+        s5 = self.get_passport_perceive.add_subtask(self.detect_passport_corner)
+        self.get_passport_perceive.set_ordered(s1, s2, s3, s4, s5)
 
         # move arm over passport, perceive passport, pick it up, move arm over passport
         self.get_passport_full = Method("get_passport_full", passport=type_item)
@@ -202,8 +204,8 @@ class INCMDomain(Bridge):
         self.get_passport_full.add_precondition(self.holding(self.nothing))
         self.get_passport_full.add_precondition(Not(self.passport_corner_detected()))
         s1 = self.get_passport_full.add_subtask(self.move_arm, self.home)
-        s2 = self.get_passport_full.add_subtask(self.move_arm, self.over_passport)
-        s3 = self.get_passport_full.add_subtask(self.perceive_passport)
+        s2 = self.get_passport_full.add_subtask(self.perceive_passport)
+        s3 = self.get_passport_full.add_subtask(self.move_arm, self.over_passport)
         s4 = self.get_passport_full.add_subtask(
             self.pick_passport, self.get_passport_full.passport
         )
@@ -388,7 +390,7 @@ class INCMDomain(Bridge):
             self.t_scan_passport, self.scan_passport_get.passport
         )
         self.scan_passport_get.add_precondition(Not(self.passport_status_known()))
-        self.scan_passport_get.add_precondition(self.passports_available())
+        self.scan_passport_get.add_precondition(self.passport_is_available())
         s1 = self.scan_passport_get.add_subtask(
             self.t_get_passport, self.scan_passport_get.passport
         )
@@ -412,8 +414,11 @@ class INCMDomain(Bridge):
 
         # no passports in passport supports refill_passports
         self.scan_passport_refill = Method("scan_passport_refill", passport=type_item)
-        self.scan_passport_refill.set_task(self.t_scan_passport, self.scan_passport_refill.passport)
-        self.scan_passport_refill.add_precondition(Not(self.passports_available()))
+        self.scan_passport_refill.set_task(
+            self.t_scan_passport, self.scan_passport_refill.passport
+        )
+        self.scan_passport_refill.add_precondition(Not(self.passport_is_available()))
+        self.scan_passport_refill.add_precondition(self.perceived_passport())
         self.scan_passport_refill.add_subtask(self.refill_passports)
 
         self.methods = (
@@ -569,8 +574,10 @@ class INCMDomain(Bridge):
                 "refill_passports",
                 _callable=actions.refill_passports,
             )
-            self.refill_passports.add_precondition(Not(self.passports_available()))
-            self.refill_passports.add_effect(self.passports_available(), True)
+            self.refill_passports.add_precondition(Not(self.passport_is_available()))
+            self.refill_passports.add_precondition(self.perceived_passport())
+            self.refill_passports.add_effect(self.passport_is_available(), True)
+            self.refill_passports.add_effect(self.perceived_passport(), False)
 
     def set_state_and_goal(self, problem, goal=None) -> None:
         success = True

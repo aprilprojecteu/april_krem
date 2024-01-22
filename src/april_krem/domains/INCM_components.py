@@ -46,7 +46,7 @@ class Environment:
         self.used_chip_reader = False
         self.passport_status = None
         self.detected_passport_corner = False
-        self.available_passports = 2
+        self.passport_available = True
 
         self.box_status = {
             Status.ok: 1,
@@ -79,7 +79,7 @@ class Environment:
         self.used_chip_reader = False
         self.passport_status = None
         self.detected_passport_corner = False
-        self.available_passports = 2
+        self.passport_available = True
 
         self.box_status = {
             Status.ok: 1,
@@ -98,6 +98,7 @@ class Environment:
         self.used_chip_reader = False
         self.passport_status = None
         self.detected_passport_corner = False
+        self.passport_available = True
 
         self._perceived_objects.clear()
 
@@ -181,9 +182,9 @@ class Environment:
 
     def passport_corner_detected(self) -> bool:
         return self.detected_passport_corner
-    
-    def passports_available(self) -> bool:
-        return self.available_passports > 0
+
+    def passport_is_available(self) -> bool:
+        return self.passport_available
 
 
 class Actions:
@@ -213,9 +214,11 @@ class Actions:
             timeout=self._non_robot_actions_timeout,
         )
         if result:
+            self._env.passport_perceived = True
             type, _ = self._env._get_item_type_and_id("passport")
-            if type:
-                self._env.passport_perceived = True
+            self._env.passport_available = type is not None
+            if not self._env.passport_available:
+                return False, "failed"
         return result, msg
 
     def detect_passport_corner(self):
@@ -290,10 +293,7 @@ class Actions:
     def read_mrz(self, passport: Item):
         if self._env.item_in_hand is not None:
             result, msg = PlanDispatcher.run_symbolic_action(
-                "read_mrz",
-                [],
-                timeout=self._robot_actions_timeout,
-                number_of_retries=0
+                "read_mrz", [], timeout=self._robot_actions_timeout, number_of_retries=0
             )
             if result:
                 self._env.used_mrz_reader = True
@@ -303,7 +303,7 @@ class Actions:
                     self._sliding_fails = 0
                     return False, "wait_for_human_intervention"
                 self._sliding_fails += 1
-                self._env.detected_passport_corner = False   
+                self._env.detected_passport_corner = False
             return result, msg
         return False, "failed"
 
@@ -346,13 +346,13 @@ class Actions:
                 self._env.used_mrz_reader = False
                 self._env.used_chip_reader = False
                 self._env.detected_passport_corner = False
-                self._env.available_passports -= 1
                 self._env._krem_logging.cycle_complete = True
                 self._env._perceived_objects.clear()
             return result, msg
         return False, "failed"
 
     def empty_box(self, status: Status):
+        self._env._krem_logging.wfhi_counter += 1
         result, msg = PlanDispatcher.run_symbolic_action(
             "wait_for_human_intervention",
             [f"{status.value} box is full. Empty box."],
@@ -361,14 +361,15 @@ class Actions:
         if result:
             self._env.box_status[status] = 1
         return result, msg
-    
+
     def refill_passports(self):
+        self._env._krem_logging.wfhi_counter += 1
         result, msg = PlanDispatcher.run_symbolic_action(
             "wait_for_human_intervention",
-            [f"Place new passports in passport supports."],
+            ["Place new passports in passport supports."],
             timeout=0.0,
         )
         if result:
-            self._env.available_passports = 2
+            self._env.passport_available = True
+            self._env.passport_perceived = False
         return result, msg
-
