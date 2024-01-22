@@ -213,12 +213,13 @@ class Actions:
             "perceive_passport",
             timeout=self._non_robot_actions_timeout,
         )
-        if result:
-            self._env.passport_perceived = True
-            type, _ = self._env._get_item_type_and_id("passport")
-            self._env.passport_available = type is not None
-            if not self._env.passport_available:
-                return False, "failed"
+
+        self._env.passport_perceived = True
+        type, _ = self._env._get_item_type_and_id("passport")
+        self._env.passport_available = type is not None
+        if not self._env.passport_available:
+            return False, "failed"
+
         return result, msg
 
     def detect_passport_corner(self):
