@@ -13,7 +13,8 @@
 
         <arg name="non_robot_actions_timeout" default="20" doc="Specify a timeout in seconds for all actions, which do not use the robotic arm."/>
         <arg name="robot_actions_timeout" default="120" doc="Specify a timeout in seconds for all actions, which include the robotic arm, e.g. pick, insert, place."/>
-        <arg name="ACB_display_text" default="$(find april_krem)/config/$(arg use_case)_ACB_display_text.yaml"/>
+        <arg name="ACB_display_text" value="$(find april_krem)/config/uc5_ACB_display_text.yaml" if="$(eval '_' in use_case)"/>
+        <arg name="ACB_display_text" value="$(find april_krem)/config/$(arg use_case)_ACB_display_text.yaml" unless="$(eval '_' in use_case)"/>
 
         <!-- plan executor -->
         <node name="plan_executor" pkg="april_krem" type="UP_executor_node" respawn="false" output="screen">
@@ -36,5 +37,6 @@
         </group>
     </group>
     <!-- Grasp Library -->
-    <include file="$(find grasp_library)/launch/$(arg use_case).launch"/>
+    <include file="$(find grasp_library)/launch/uc5.launch" if="$(eval '_' in use_case)"/>
+    <include file="$(find grasp_library)/launch/$(arg use_case).launch" unless="$(eval '_' in use_case)"/>
 </launch>

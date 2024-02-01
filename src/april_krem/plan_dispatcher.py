@@ -57,7 +57,7 @@ class PlanDispatcher:
         PlanDispatcher.HICEM_ACTION_SERVER.wait_for_server()
         rospy.loginfo("HICEM Run Symbolic Action Server found!")
 
-        self._acb_display_text = rospy.get_param("~ACB_display_text", default="")
+        self._acb_display_text = rospy.get_param("~ACB_display_text", default={})
 
     def execute_plan(self, plan: Plan, graph: nx.DiGraph) -> bool:
         """Execute the plan."""

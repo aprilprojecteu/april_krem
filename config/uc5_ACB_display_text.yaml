@@ -1,0 +1,70 @@
+---
+switch_to_epic:
+  replanning: false
+  message: Could not switch epic.
+move_arm:
+  replanning: false
+  message: Could not move the arm.
+get_next_cables:
+  replanning: false
+  message: Failed to get new cables.
+get_next_pallet:
+  replanning: false
+  message: Failed to get a new engine.
+get_next_cover:
+  replanning: false
+  message: Failed to get a new cover.
+get_next_propeller:
+  replanning: false
+  message: Failed to get a new propeller.
+pick_cable:
+  replanning: false
+  message: Could not pick up the cable.
+pick_cover:
+  replanning: false
+  message: Could not pick up the cover.
+pick_propeller:
+  replanning: false
+  message: Could not pick up the propeller.
+perceive_item:
+  replanning: false
+  message: Could not detect the cables in the dispenser.
+get_cable_pose:
+  replanning: false
+  message: Could not get cable soldering pose.
+get_cover_pose:
+  replanning: false
+  message: Could not get external cover pose.
+level_cover:
+  replanning: false
+  message: Could not level the cover.
+assemble_cover:
+  replanning: false
+  message: Not able to place cover on assembly station.
+assemble_propeller:
+  replanning: false
+  message: Not able to place propeller on assembly station.
+wait_for_soldering:
+  replanning: false
+  message: Waiting for human to solder the cable failed.
+wait_for_fixed_cover:
+  replanning: false
+  message: Waiting for human to fix the cover failed.
+wait_for_fixed_propeller:
+  replanning: false
+  message: Waiting for human to fix the propeller failed.
+inspect:
+  replanning: false
+  message: No result received from inspection.
+release_cable:
+  replanning: false
+  message: Releasing the grasp on the cable failed.
+move_arm_cable_end:
+  replanning: false
+  message: Could not move the arm.
+reject_item:
+  replanning: false
+  message: Placing item in rejection box failed.
+empty_reject_box:
+  replanning: false
+  message: Waiting for human to empty the rejection box failed.

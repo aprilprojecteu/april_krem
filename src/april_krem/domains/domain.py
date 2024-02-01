@@ -32,16 +32,10 @@ class Domain:
             from april_krem.domains.PEMU_domain import PEMUDomain
 
             self.specific_domain = PEMUDomain(krem_logging, temporal)
-        elif use_case == "uc5_1":
-            pass
-        elif use_case == "uc5_2":
-            pass
-        elif use_case == "uc5_3":
-            pass
-        elif use_case == "uc5_4":
-            pass
-        elif use_case == "uc5_5":
-            pass
+        elif "uc5" in use_case:
+            from april_krem.domains.SLVR_domain import SLVRDomain
+
+            self.specific_domain = SLVRDomain(krem_logging, temporal, use_case)
         elif use_case == "uc6":
             from april_krem.domains.INES_domain import INESDomain
 
