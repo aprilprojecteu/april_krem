@@ -92,12 +92,15 @@ class PlanDispatcher:
             # check preconditions
             if self._enable_monitor:
                 for succ_id in successors:
-                    action_name = self._graph.nodes[succ_id]["action"]
-                    if action_name not in ["start", "end"]:
+                    action = (
+                        self._graph.nodes[succ_id]["action"],
+                        self._graph.nodes[succ_id]["parameters"],
+                    )
+                    if action[0] not in ["start", "end"]:
                         precondition_result = self._monitor.check_preconditions(succ_id)
                         if not precondition_result:
                             execution_status = "failed"
-                            failed_actions.append(action_name)
+                            failed_actions.append(action)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
                 if execution_status != "executing":
                     break
@@ -112,11 +115,14 @@ class PlanDispatcher:
 
             if results is not None:
                 for succ_id, result in results.items():
-                    action_name = self._graph.nodes[succ_id]["action"]
-                    if action_name not in ["start", "end"]:
+                    action = (
+                        self._graph.nodes[succ_id]["action"],
+                        self._graph.nodes[succ_id]["parameters"],
+                    )
+                    if action[0] not in ["start", "end"]:
                         if not result[0]:
                             execution_status = result[1]
-                            failed_actions.append(action_name)
+                            failed_actions.append(action)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
                 if execution_status != "executing":
                     break
@@ -124,14 +130,17 @@ class PlanDispatcher:
             # check postconditions
             if self._enable_monitor:
                 for succ_id in successors:
-                    action_name = self._graph.nodes[succ_id]["action"]
-                    if action_name not in ["start", "end"]:
+                    action = (
+                        self._graph.nodes[succ_id]["action"],
+                        self._graph.nodes[succ_id]["parameters"],
+                    )
+                    if action[0] not in ["start", "end"]:
                         postcondition_result = self._monitor.check_postconditions(
                             succ_id
                         )
                         if not postcondition_result:
                             execution_status = "failed"
-                            failed_actions.append(action_name)
+                            failed_actions.append(action)
                             self._plan_viz.fail(self._node_id_to_action_map[succ_id])
                 if execution_status != "executing":
                     break
@@ -158,12 +167,13 @@ class PlanDispatcher:
 
         if execution_status != "executing":
             if failed_actions:
-                replanning = self._acb_display_text.get(failed_actions[0], {}).get(
+                replanning = self._acb_display_text.get(failed_actions[0][0], {}).get(
                     "replanning", False
                 )
-                message = self._acb_display_text.get(failed_actions[0], {}).get(
+                message = self._acb_display_text.get(failed_actions[0][0], {}).get(
                     "message", "UNKNOWN ERROR"
                 )
+                message = message.format(*failed_actions[0][1].values())
                 if execution_status == "wait_for_human_intervention":
                     replanning = False
                 if replanning:

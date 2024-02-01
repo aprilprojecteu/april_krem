@@ -1,4 +1,5 @@
 import itertools
+from enum import Enum
 from typing import Dict, List, Optional, Union
 
 from unified_planning.model import Object
@@ -10,6 +11,11 @@ from unified_planning.model.metrics import (
 from unified_planning.engines import OptimalityGuarantee
 from unified_planning.plans import Plan
 from unified_planning.shortcuts import OneshotPlanner
+
+
+class StrEnum(Enum):
+    def __str__(self):
+        return self.name
 
 
 class Domain:

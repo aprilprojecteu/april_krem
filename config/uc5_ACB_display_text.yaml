@@ -1,7 +1,7 @@
 ---
 switch_to_epic:
   replanning: false
-  message: Could not switch epic.
+  message: Could not switch to {}.
 move_arm:
   replanning: false
   message: Could not move the arm.
@@ -28,7 +28,7 @@ pick_propeller:
   message: Could not pick up the propeller.
 perceive_item:
   replanning: false
-  message: Could not detect the cables in the dispenser.
+  message: Could not detect the {}.
 get_cable_pose:
   replanning: false
   message: Could not get cable soldering pose.
@@ -64,7 +64,7 @@ move_arm_cable_end:
   message: Could not move the arm.
 reject_item:
   replanning: false
-  message: Placing item in rejection box failed.
+  message: Placing the {} in rejection box failed.
 empty_reject_box:
   replanning: false
   message: Waiting for human to empty the rejection box failed.

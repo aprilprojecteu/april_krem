@@ -1,5 +1,4 @@
 from typing import Tuple
-from enum import Enum
 
 import rospy
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
@@ -11,16 +10,17 @@ from april_msgs.srv import (
 )
 
 from april_krem.plan_dispatcher import PlanDispatcher
+from april_krem.domains.domain import StrEnum
 
 
-class Item(Enum):
+class Item(StrEnum):
     nothing = "nothing"
     cable = "cable"
     cover = "cover"
     propeller = "propeller"
 
 
-class ArmPose(Enum):
+class ArmPose(StrEnum):
     unknown = "unknown"
     home = "home"
     arm_up = "arm_up"
@@ -38,19 +38,19 @@ class ArmPose(Enum):
     over_propeller_station = "over_propeller_station"
 
 
-class Status(Enum):
+class Status(StrEnum):
     ok = "ok"
     nok = "nok"
 
 
-class Color(Enum):
+class Color(StrEnum):
     red = "UC5_cable_soldering_red"
     blue = "UC5_cable_soldering_blue"
     brown = "UC5_cable_soldering_brown"
     white = "UC5_cable_soldering_white"
 
 
-class Epic(Enum):
+class Epic(StrEnum):
     epic2 = "epic2"
     epic3 = "epic3"
     epic4 = "epic4"
