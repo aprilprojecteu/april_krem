@@ -4,7 +4,7 @@ switch_to_epic:
   message: Could not switch to {}.
 move_arm:
   replanning: false
-  message: Could not move the arm.
+  message: Could not move the arm to {}.
 get_next_cables:
   replanning: false
   message: Failed to get new cables.

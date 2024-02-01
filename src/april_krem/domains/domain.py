@@ -15,7 +15,7 @@ from unified_planning.shortcuts import OneshotPlanner
 
 class StrEnum(Enum):
     def __str__(self):
-        return self.name
+        return self.value
 
 
 class Domain:

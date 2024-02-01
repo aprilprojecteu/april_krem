@@ -22,20 +22,20 @@ class Item(StrEnum):
 
 class ArmPose(StrEnum):
     unknown = "unknown"
-    home = "home"
-    arm_up = "arm_up"
-    over_reject_box = "over_reject_box"
-    over_cable_dispenser = "over_cable_dispenser"
-    over_cable_station = "over_cable_station"
-    soldering_pose = "soldering_pose"
+    home = "home pose"
+    arm_up = "arm up"
+    over_reject_box = "over reject box"
+    over_cable_dispenser = "over cable soldering dispenser"
+    over_cable_station = "over cable soldering station"
+    soldering_pose = "cable soldering pose"
 
-    over_feeding_conveyor = "over_feeding_conveyor"
+    over_feeding_conveyor = "over feeding conveyor"
 
-    cover_transition_pose = "cover_transition_pose"
-    over_cover_station = "over_cover_station"
+    cover_transition_pose = "external cover transition pose"
+    over_cover_station = "over external cover assembly station"
 
-    propeller_transition_pose = "propeller_transition_pose"
-    over_propeller_station = "over_propeller_station"
+    propeller_transition_pose = "propeller transition pose"
+    over_propeller_station = "over propeller assembly station"
 
 
 class Status(StrEnum):
