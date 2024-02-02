@@ -404,6 +404,8 @@ class Actions:
                     self._env.cables_available[cable_color] = type is not None
                 if self._env.cables_available[self._env.current_color]:
                     self._env.item_perceived[Item.cable] = True
+                else:
+                    return False, "failed"
 
         elif item == Item.cover:
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -417,6 +419,8 @@ class Actions:
 
                 if self._env.cover_available:
                     self._env.item_perceived[Item.cover] = True
+                else:
+                    return False, "failed"
 
         elif item == Item.propeller:
             result, msg = PlanDispatcher.run_symbolic_action(
@@ -430,6 +434,8 @@ class Actions:
 
                 if self._env.propeller_available:
                     self._env.item_perceived[Item.propeller] = True
+                else:
+                    return False, "failed"
 
         return result, msg
 
@@ -680,6 +686,8 @@ class Actions:
         )
         if result:
             self._env.holding_item = Item.nothing
+            self._env.cover_pose = False
+            self._env.cover_leveled = False
             self._env.arm_pose = ArmPose.unknown
             self._env.cover_assembled = True
 
@@ -717,11 +725,11 @@ class Actions:
             self._env.item_status[Item.cover] = None
             self._env.cover_assembled = False
 
-            self._env.current_epic = None
             self._env._perceived_objects.clear()
 
             if self._env._use_case == "uc5":
                 self._env.epic_done[Epic.epic3] = True
+                self._env.current_epic = None
             else:
                 self._env.pallet_available = False
                 self._env._krem_logging.cycle_complete = True
@@ -738,7 +746,6 @@ class Actions:
             self._env.item_status[Item.propeller] = None
             self._env.propeller_assembled = False
 
-            self._env.current_epic = None
             self._env._perceived_objects.clear()
 
             self._env.pallet_available = False
@@ -748,6 +755,7 @@ class Actions:
                 self._env.epic_done[Epic.epic2] = False
                 self._env.epic_done[Epic.epic3] = False
                 self._env.epic_done[Epic.epic4] = False
+                self._env.current_epic = None
 
         return result, msg
 
@@ -782,10 +790,14 @@ class Actions:
                     Color.brown,
                     Color.white,
                 ]
-                self._env.current_epic = None
+                self._env.cables_available = dict.fromkeys(
+                    self._env.cables_available, False
+                )
+
                 self._env._perceived_objects.clear()
                 if self._env._use_case == "uc5":
                     self._env.epic_done[Epic.epic2] = True
+                    self._env.current_epic = None
                 else:
                     self._env.pallet_available = False
                     self._env._krem_logging.cycle_complete = True
