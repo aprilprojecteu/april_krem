@@ -633,7 +633,10 @@ class Actions:
         )
         if result:
             self._env.cable_pose = True
-            self._env.arm_pose = ArmPose.unknown
+        else:
+            self._env.holding_item = Item.nothing
+
+        self._env.arm_pose = ArmPose.unknown
 
         return result, msg
 

@@ -30,7 +30,7 @@ perceive_item:
   replanning: false
   message: Could not detect the {}.
 get_cable_pose:
-  replanning: false
+  replanning: true
   message: Could not get cable soldering pose.
 get_cover_pose:
   replanning: false
