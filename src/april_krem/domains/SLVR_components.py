@@ -779,11 +779,11 @@ class Actions:
 
     def move_arm_cable_end(self):
         result, msg = PlanDispatcher.run_symbolic_action(
-            "move_over_cable_soldering_station",
+            "move_arm_up",
             timeout=self._robot_actions_timeout,
         )
         if result:
-            self._env.arm_pose = ArmPose.over_cable_station
+            self._env.arm_pose = ArmPose.arm_up
             self._env.item_status[Item.cable] = None
             if not self._env.cables_to_be_soldered:
                 self._env.current_color = Color.red
