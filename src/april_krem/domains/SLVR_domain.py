@@ -905,12 +905,16 @@ class SLVRDomain(Bridge):
 
         # arm up
         self.pick_cover_move_arm_up = Method("pick_cover_move_arm_up", cover=type_item)
-        self.pick_cover_move_arm_up.set_task(self.t_pick_cover, self.pick_cover_move_arm_up.cover)
+        self.pick_cover_move_arm_up.set_task(
+            self.t_pick_cover, self.pick_cover_move_arm_up.cover
+        )
         self.pick_cover_move_arm_up.add_precondition(
             self.current_arm_pose(self.unknown_pose)
         )
         self.pick_cover_move_arm_up.add_precondition(self.pallet_is_available())
-        self.pick_cover_move_arm_up.add_precondition(self.holding(self.pick_cover_move_arm_up.cover))
+        self.pick_cover_move_arm_up.add_precondition(
+            self.holding(self.pick_cover_move_arm_up.cover)
+        )
         self.pick_cover_move_arm_up.add_precondition(Not(self.cover_pose_known()))
         self.pick_cover_move_arm_up.add_precondition(Not(self.cover_is_leveled()))
         self.pick_cover_move_arm_up.add_precondition(
@@ -919,9 +923,15 @@ class SLVRDomain(Bridge):
         s1 = self.pick_cover_move_arm_up.add_subtask(self.move_arm, self.arm_up)
         s2 = self.pick_cover_move_arm_up.add_subtask(self.get_cover_pose)
         s3 = self.pick_cover_move_arm_up.add_subtask(self.level_cover)
-        s4 = self.pick_cover_move_arm_up.add_subtask(self.move_arm, self.cover_transition_pose)
-        s5 = self.pick_cover_move_arm_up.add_subtask(self.move_arm, self.over_cover_station)
-        s6 = self.pick_cover_move_arm_up.add_subtask(self.inspect, self.pick_cover_move_arm_up.cover)
+        s4 = self.pick_cover_move_arm_up.add_subtask(
+            self.move_arm, self.cover_transition_pose
+        )
+        s5 = self.pick_cover_move_arm_up.add_subtask(
+            self.move_arm, self.over_cover_station
+        )
+        s6 = self.pick_cover_move_arm_up.add_subtask(
+            self.inspect, self.pick_cover_move_arm_up.cover
+        )
         self.pick_cover_move_arm_up.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # pick
@@ -1909,9 +1919,7 @@ class SLVRDomain(Bridge):
                 _callable=actions.move_arm_cable_end,
             )
             self.move_arm_cable_end.add_precondition(self.holding(self.nothing))
-            self.move_arm_cable_end.add_effect(
-                self.current_arm_pose(self.arm_up), True
-            )
+            self.move_arm_cable_end.add_effect(self.current_arm_pose(self.arm_up), True)
             self.move_arm_cable_end.add_effect(
                 self.item_status_known(self.cable), False
             )
