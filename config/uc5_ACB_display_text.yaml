@@ -18,13 +18,13 @@ get_next_propeller:
   replanning: false
   message: Failed to get a new propeller.
 pick_cable:
-  replanning: false
+  replanning: true
   message: Could not pick up the cable.
 pick_cover:
-  replanning: false
+  replanning: true
   message: Could not pick up the cover.
 pick_propeller:
-  replanning: false
+  replanning: true
   message: Could not pick up the propeller.
 perceive_item:
   replanning: false
@@ -33,7 +33,7 @@ get_cable_pose:
   replanning: true
   message: Could not get cable soldering pose.
 get_cover_pose:
-  replanning: false
+  replanning: true
   message: Could not get external cover pose.
 level_cover:
   replanning: false

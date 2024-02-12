@@ -450,15 +450,15 @@ class Actions:
 
         return result, msg
 
-    def get_next_cables(self, color: Color):
+    def get_next_cable(self, color: Color):
         result, msg = PlanDispatcher.run_symbolic_action(
-            "get_next_cables",
-            ["Waiting for new cables."],
+            "get_next_cable",
+            [f"Waiting for {color.name} cable."],
             timeout=0.0,
         )
         if result:
             self._env.item_perceived[Item.cable] = False
-            self._env.cables_available = dict.fromkeys(self._env.cables_available, True)
+            self._env.cables_available[color] = True
 
         return result, msg
 
@@ -580,10 +580,10 @@ class Actions:
                 timeout=self._robot_actions_timeout,
             )
             if result:
-                self._env.holding_item = Item.cable
-                self._env.arm_pose = ArmPose.unknown
-                self._env.item_perceived[Item.cable] = False
-                self._env.cables_available[self._env.current_color] = False
+                self._env.holding_item = cable
+            self._env.arm_pose = ArmPose.unknown
+            self._env.item_perceived[cable] = False
+            self._env.cables_available[self._env.current_color] = False
             return result, msg
         return False, "failed"
 
@@ -600,9 +600,9 @@ class Actions:
             )
             if result:
                 self._env.holding_item = cover
-                self._env.arm_pose = ArmPose.unknown
-                self._env.item_perceived[cover] = False
-                self._env.cover_available = False
+            self._env.arm_pose = ArmPose.unknown
+            self._env.item_perceived[cover] = False
+            self._env.cover_available = False
             return result, msg
         return False, "failed"
 
@@ -619,9 +619,9 @@ class Actions:
             )
             if result:
                 self._env.holding_item = propeller
-                self._env.arm_pose = ArmPose.unknown
-                self._env.item_perceived[propeller] = False
-                self._env.propeller_available = False
+            self._env.arm_pose = ArmPose.unknown
+            self._env.item_perceived[propeller] = False
+            self._env.propeller_available = False
             return result, msg
         return False, "failed"
 
@@ -648,7 +648,9 @@ class Actions:
         )
         if result:
             self._env.cover_pose = True
-            self._env.arm_pose = ArmPose.unknown
+        else:
+            self._env.holding_item = Item.nothing
+        self._env.arm_pose = ArmPose.unknown
 
         return result, msg
 

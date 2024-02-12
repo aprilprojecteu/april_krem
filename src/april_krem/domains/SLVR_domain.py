@@ -1,6 +1,6 @@
 from rospy import logerr
 from unified_planning.model.htn import Task, Method
-from unified_planning.shortcuts import Not, Equals
+from unified_planning.shortcuts import Not, Equals, Or
 from april_krem.domains.SLVR_components import (
     Item,
     ArmPose,
@@ -168,7 +168,9 @@ class SLVRDomain(Bridge):
         self.get_cable_perceive.set_task(
             self.t_get_cable, self.get_cable_perceive.cable
         )
-        self.get_cable_perceive.add_precondition(self.current_arm_pose(self.home))
+        self.get_cable_perceive.add_precondition(
+            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+        )
         self.get_cable_perceive.add_precondition(self.pallet_is_available())
         self.get_cable_perceive.add_precondition(
             Not(self.perceived_item(self.get_cable_perceive.cable))
@@ -187,38 +189,12 @@ class SLVRDomain(Bridge):
             self.perceive_item, self.get_cable_perceive.cable
         )
 
-        # move to home pose, pallet available, cables available, perceive them
-        self.get_cable_partial = Method(
-            "get_cable_partial", cable=type_item, color=type_color
-        )
-        self.get_cable_partial.set_task(self.t_get_cable, self.get_cable_partial.cable)
-        self.get_cable_partial.add_precondition(Not(self.current_arm_pose(self.home)))
-        self.get_cable_partial.add_precondition(self.pallet_is_available())
-        self.get_cable_partial.add_precondition(
-            Not(self.perceived_item(self.get_cable_partial.cable))
-        )
-        self.get_cable_partial.add_precondition(
-            self.current_cable_color(self.get_cable_partial.color)
-        )
-        self.get_cable_partial.add_precondition(
-            self.cable_color_available(self.get_cable_partial.color)
-        )
-        self.get_cable_partial.add_precondition(self.holding(self.nothing))
-        self.get_cable_partial.add_precondition(
-            Not(self.cable_soldered(self.get_cable_partial.color))
-        )
-        s1 = self.get_cable_partial.add_subtask(self.move_arm, self.home)
-        s2 = self.get_cable_partial.add_subtask(
-            self.perceive_item, self.get_cable_partial.cable
-        )
-        self.get_cable_partial.set_ordered(s1, s2)
-
         # move to home pose, pallet available, cable missing, perceive them
         self.get_cable_redo = Method(
             "get_cable_redo", cable=type_item, color=type_color
         )
         self.get_cable_redo.set_task(self.t_get_cable, self.get_cable_redo.cable)
-        self.get_cable_redo.add_precondition(Not(self.current_arm_pose(self.home)))
+        self.get_cable_redo.add_precondition(self.current_arm_pose(self.unknown_pose))
         self.get_cable_redo.add_precondition(self.pallet_is_available())
         self.get_cable_redo.add_precondition(
             Not(self.perceived_item(self.get_cable_redo.cable))
@@ -235,7 +211,7 @@ class SLVRDomain(Bridge):
         )
         s1 = self.get_cable_redo.add_subtask(self.move_arm, self.home)
         s2 = self.get_cable_redo.add_subtask(
-            self.get_next_cables, self.get_cable_redo.color
+            self.get_next_cable, self.get_cable_redo.color
         )
         s3 = self.get_cable_redo.add_subtask(
             self.perceive_item, self.get_cable_redo.cable
@@ -247,7 +223,9 @@ class SLVRDomain(Bridge):
             "get_cable_cables", cable=type_item, color=type_color
         )
         self.get_cable_cables.set_task(self.t_get_cable, self.get_cable_cables.cable)
-        self.get_cable_cables.add_precondition(self.current_arm_pose(self.home))
+        self.get_cable_cables.add_precondition(
+            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+        )
         self.get_cable_cables.add_precondition(self.pallet_is_available())
         self.get_cable_cables.add_precondition(
             Not(self.perceived_item(self.get_cable_cables.cable))
@@ -263,7 +241,7 @@ class SLVRDomain(Bridge):
             Not(self.cable_soldered(self.get_cable_cables.color))
         )
         s1 = self.get_cable_cables.add_subtask(
-            self.get_next_cables, self.get_cable_cables.color
+            self.get_next_cable, self.get_cable_cables.color
         )
         s2 = self.get_cable_cables.add_subtask(
             self.perceive_item, self.get_cable_cables.cable
@@ -292,7 +270,7 @@ class SLVRDomain(Bridge):
         )
         s1 = self.get_cable_pallet.add_subtask(self.get_next_pallet)
         s2 = self.get_cable_pallet.add_subtask(
-            self.get_next_cables, self.get_cable_pallet.color
+            self.get_next_cable, self.get_cable_pallet.color
         )
         s3 = self.get_cable_pallet.add_subtask(
             self.perceive_item, self.get_cable_pallet.cable
@@ -304,7 +282,12 @@ class SLVRDomain(Bridge):
             "get_cables_full", cable=type_item, color=type_color
         )
         self.get_cable_full.set_task(self.t_get_cable, self.get_cable_full.cable)
-        self.get_cable_full.add_precondition(Not(self.current_arm_pose(self.home)))
+        self.get_cable_full.add_precondition(
+            Or(
+                self.current_arm_pose(self.unknown_pose),
+                self.current_arm_pose(self.arm_up),
+            )
+        )
         self.get_cable_full.add_precondition(Not(self.pallet_is_available()))
         self.get_cable_full.add_precondition(
             Not(self.perceived_item(self.get_cable_full.cable))
@@ -322,7 +305,7 @@ class SLVRDomain(Bridge):
         s1 = self.get_cable_full.add_subtask(self.move_arm, self.home)
         s2 = self.get_cable_full.add_subtask(self.get_next_pallet)
         s3 = self.get_cable_full.add_subtask(
-            self.get_next_cables, self.get_cable_full.color
+            self.get_next_cable, self.get_cable_full.color
         )
         s4 = self.get_cable_full.add_subtask(
             self.perceive_item, self.get_cable_full.cable
@@ -443,7 +426,9 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_full.add_precondition(self.holding(self.nothing))
         self.pick_cable_full.add_precondition(self.pallet_is_available())
-        self.pick_cable_full.add_precondition(self.current_arm_pose(self.home))
+        self.pick_cable_full.add_precondition(
+            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+        )
         self.pick_cable_full.add_precondition(Not(self.cable_pose_known()))
         s1 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_dispenser)
         s2 = self.pick_cable_full.add_subtask(
@@ -1657,7 +1642,6 @@ class SLVRDomain(Bridge):
 
         self.methods = (
             self.get_cable_perceive,
-            self.get_cable_partial,
             self.get_cable_redo,
             self.get_cable_cables,
             self.get_cable_pallet,
@@ -1754,21 +1738,14 @@ class SLVRDomain(Bridge):
             self.get_next_pallet.add_precondition(Not(self.pallet_is_available()))
             self.get_next_pallet.add_effect(self.pallet_is_available(), True)
 
-            self.get_next_cables, [co] = self.create_action(
-                "get_next_cables", color=Color, _callable=actions.get_next_cables
+            self.get_next_cable, [co] = self.create_action(
+                "get_next_cable", color=Color, _callable=actions.get_next_cable
             )
-            self.get_next_cables.add_precondition(Not(self.holding(self.cable)))
-            self.get_next_cables.add_precondition(Not(self.cable_soldered(co)))
-            self.get_next_cables.add_precondition(Not(self.cable_color_available(co)))
-            self.get_next_cables.add_effect(self.cable_color_available(self.red), True)
-            self.get_next_cables.add_effect(self.cable_color_available(self.blue), True)
-            self.get_next_cables.add_effect(
-                self.cable_color_available(self.brown), True
-            )
-            self.get_next_cables.add_effect(
-                self.cable_color_available(self.white), True
-            )
-            self.get_next_cables.add_effect(self.perceived_item(self.cable), False)
+            self.get_next_cable.add_precondition(Not(self.holding(self.cable)))
+            self.get_next_cable.add_precondition(Not(self.cable_soldered(co)))
+            self.get_next_cable.add_precondition(Not(self.cable_color_available(co)))
+            self.get_next_cable.add_effect(self.cable_color_available(co), True)
+            self.get_next_cable.add_effect(self.perceived_item(self.cable), False)
 
             self.get_next_cover, _ = self.create_action(
                 "get_next_cover", _callable=actions.get_next_cover
