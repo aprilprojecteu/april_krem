@@ -993,7 +993,7 @@ class SLVRDomain(Bridge):
         # wait
         self.put_cover_wait = Method("put_cover_wait", cover=type_item)
         self.put_cover_wait.set_task(self.t_put_cover, self.put_cover_wait.cover)
-        self.put_cover_wait.add_precondition(self.current_arm_pose(self.unknown_pose))
+        self.put_cover_wait.add_precondition(self.current_arm_pose(self.home))
         self.put_cover_wait.add_precondition(self.pallet_is_available())
         self.put_cover_wait.add_precondition(self.holding(self.nothing))
         self.put_cover_wait.add_precondition(
@@ -1004,6 +1004,27 @@ class SLVRDomain(Bridge):
         )
         self.put_cover_wait.add_precondition(self.cover_is_assembled())
         self.put_cover_wait.add_subtask(self.wait_for_fixed_cover)
+
+        # move arm
+        self.put_cover_move_arm = Method("put_cover_move_arm", cover=type_item)
+        self.put_cover_move_arm.set_task(
+            self.t_put_cover, self.put_cover_move_arm.cover
+        )
+        self.put_cover_move_arm.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
+        self.put_cover_move_arm.add_precondition(self.pallet_is_available())
+        self.put_cover_move_arm.add_precondition(self.holding(self.nothing))
+        self.put_cover_move_arm.add_precondition(
+            self.item_status_known(self.put_cover_move_arm.cover)
+        )
+        self.put_cover_move_arm.add_precondition(
+            self.status_of_item(self.put_cover_move_arm.cover, self.ok)
+        )
+        self.put_cover_move_arm.add_precondition(self.cover_is_assembled())
+        s1 = self.put_cover_move_arm.add_subtask(self.move_arm, self.home)
+        s2 = self.put_cover_move_arm.add_subtask(self.wait_for_fixed_cover)
+        self.put_cover_move_arm.set_ordered(s1, s2)
 
         # full
         self.put_cover_full = Method("put_cover_full", cover=type_item)
@@ -1023,8 +1044,9 @@ class SLVRDomain(Bridge):
         s1 = self.put_cover_full.add_subtask(
             self.assemble_cover, self.put_cover_full.cover
         )
-        s2 = self.put_cover_full.add_subtask(self.wait_for_fixed_cover)
-        self.put_cover_full.set_ordered(s1, s2)
+        s2 = self.put_cover_full.add_subtask(self.move_arm, self.home)
+        s3 = self.put_cover_full.add_subtask(self.wait_for_fixed_cover)
+        self.put_cover_full.set_ordered(s1, s2, s3)
 
         # reject
         self.put_cover_reject = Method("put_cover_reject", cover=type_item)
@@ -1079,6 +1101,7 @@ class SLVRDomain(Bridge):
         self.assemble_cover_get.add_precondition(
             Not(self.perceived_item(self.assemble_cover_get.cover))
         )
+        self.assemble_cover_get.add_precondition(Not(self.cover_is_assembled()))
         self.assemble_cover_get.add_subtask(
             self.t_get_cover, self.assemble_cover_get.cover
         )
@@ -1093,6 +1116,7 @@ class SLVRDomain(Bridge):
         self.assemble_cover_pick.add_precondition(
             Not(self.item_status_known(self.assemble_cover_pick.cover))
         )
+        self.assemble_cover_pick.add_precondition(Not(self.cover_is_assembled()))
         self.assemble_cover_pick.add_subtask(
             self.t_pick_cover, self.assemble_cover_pick.cover
         )
@@ -1387,15 +1411,13 @@ class SLVRDomain(Bridge):
         )
         self.pick_propeller_full.set_ordered(s1, s2, s3, s4, s5, s6)
 
-        # PUT COVER
+        # PUT PROPELLER
         # wait
         self.put_propeller_wait = Method("put_propeller_wait", propeller=type_item)
         self.put_propeller_wait.set_task(
             self.t_put_propeller, self.put_propeller_wait.propeller
         )
-        self.put_propeller_wait.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
+        self.put_propeller_wait.add_precondition(self.current_arm_pose(self.home))
         self.put_propeller_wait.add_precondition(self.pallet_is_available())
         self.put_propeller_wait.add_precondition(self.holding(self.nothing))
         self.put_propeller_wait.add_precondition(
@@ -1406,6 +1428,47 @@ class SLVRDomain(Bridge):
         )
         self.put_propeller_wait.add_precondition(self.propeller_is_assembled())
         self.put_propeller_wait.add_subtask(self.wait_for_fixed_propeller)
+
+        # home
+        self.put_propeller_home = Method("put_propeller_home", propeller=type_item)
+        self.put_propeller_home.set_task(
+            self.t_put_propeller, self.put_propeller_home.propeller
+        )
+        self.put_propeller_home.add_precondition(self.current_arm_pose(self.arm_up))
+        self.put_propeller_home.add_precondition(self.pallet_is_available())
+        self.put_propeller_home.add_precondition(self.holding(self.nothing))
+        self.put_propeller_home.add_precondition(
+            self.item_status_known(self.put_propeller_home.propeller)
+        )
+        self.put_propeller_home.add_precondition(
+            self.status_of_item(self.put_propeller_home.propeller, self.ok)
+        )
+        self.put_propeller_home.add_precondition(self.propeller_is_assembled())
+        s1 = self.put_propeller_home.add_subtask(self.move_arm, self.home)
+        s2 = self.put_propeller_home.add_subtask(self.wait_for_fixed_propeller)
+        self.put_propeller_home.set_ordered(s1, s2)
+
+        # arm up
+        self.put_propeller_arm_up = Method("put_propeller_arm_up", propeller=type_item)
+        self.put_propeller_arm_up.set_task(
+            self.t_put_propeller, self.put_propeller_arm_up.propeller
+        )
+        self.put_propeller_arm_up.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
+        self.put_propeller_arm_up.add_precondition(self.pallet_is_available())
+        self.put_propeller_arm_up.add_precondition(self.holding(self.nothing))
+        self.put_propeller_arm_up.add_precondition(
+            self.item_status_known(self.put_propeller_arm_up.propeller)
+        )
+        self.put_propeller_arm_up.add_precondition(
+            self.status_of_item(self.put_propeller_arm_up.propeller, self.ok)
+        )
+        self.put_propeller_arm_up.add_precondition(self.propeller_is_assembled())
+        s1 = self.put_propeller_arm_up.add_subtask(self.move_arm, self.arm_up)
+        s2 = self.put_propeller_arm_up.add_subtask(self.move_arm, self.home)
+        s3 = self.put_propeller_arm_up.add_subtask(self.wait_for_fixed_propeller)
+        self.put_propeller_arm_up.set_ordered(s1, s2, s3)
 
         # full
         self.put_propeller_full = Method("put_propeller_full", propeller=type_item)
@@ -1429,8 +1492,10 @@ class SLVRDomain(Bridge):
         s1 = self.put_propeller_full.add_subtask(
             self.assemble_propeller, self.put_propeller_full.propeller
         )
-        s2 = self.put_propeller_full.add_subtask(self.wait_for_fixed_propeller)
-        self.put_propeller_full.set_ordered(s1, s2)
+        s2 = self.put_propeller_full.add_subtask(self.move_arm, self.arm_up)
+        s3 = self.put_propeller_full.add_subtask(self.move_arm, self.home)
+        s4 = self.put_propeller_full.add_subtask(self.wait_for_fixed_propeller)
+        self.put_propeller_full.set_ordered(s1, s2, s3, s4)
 
         # reject
         self.put_propeller_reject = Method("put_propeller_reject", propeller=type_item)
@@ -1497,6 +1562,7 @@ class SLVRDomain(Bridge):
         self.assemble_propeller_get.add_precondition(
             Not(self.perceived_item(self.assemble_propeller_get.propeller))
         )
+        self.assemble_propeller_get.add_precondition(Not(self.propeller_is_assembled()))
         self.assemble_propeller_get.add_subtask(
             self.t_get_propeller, self.assemble_propeller_get.propeller
         )
@@ -1514,6 +1580,9 @@ class SLVRDomain(Bridge):
         )
         self.assemble_propeller_pick.add_precondition(
             Not(self.item_status_known(self.assemble_propeller_pick.propeller))
+        )
+        self.assemble_propeller_pick.add_precondition(
+            Not(self.propeller_is_assembled())
         )
         self.assemble_propeller_pick.add_subtask(
             self.t_pick_propeller, self.assemble_propeller_pick.propeller
@@ -1623,6 +1692,7 @@ class SLVRDomain(Bridge):
             self.pick_cover_pick,
             self.pick_cover_full,
             self.put_cover_wait,
+            self.put_cover_move_arm,
             self.put_cover_full,
             self.put_cover_reject,
             self.put_cover_reject_full,
@@ -1642,6 +1712,8 @@ class SLVRDomain(Bridge):
             self.pick_propeller_pick,
             self.pick_propeller_full,
             self.put_propeller_wait,
+            self.put_propeller_home,
+            self.put_propeller_arm_up,
             self.put_propeller_full,
             self.put_propeller_reject,
             self.put_propeller_reject_full,
