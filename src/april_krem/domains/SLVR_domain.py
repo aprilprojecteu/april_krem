@@ -873,7 +873,7 @@ class SLVRDomain(Bridge):
         # get pose
         self.pick_cover_pose = Method("pick_cover_pose", cover=type_item)
         self.pick_cover_pose.set_task(self.t_pick_cover, self.pick_cover_pose.cover)
-        self.pick_cover_pose.add_precondition(self.current_arm_pose(self.arm_up))
+        self.pick_cover_pose.add_precondition(self.current_arm_pose(self.unknown_pose))
         self.pick_cover_pose.add_precondition(self.pallet_is_available())
         self.pick_cover_pose.add_precondition(self.holding(self.pick_cover_pose.cover))
         self.pick_cover_pose.add_precondition(Not(self.cover_pose_known()))
@@ -887,37 +887,6 @@ class SLVRDomain(Bridge):
         s4 = self.pick_cover_pose.add_subtask(self.move_arm, self.over_cover_station)
         s5 = self.pick_cover_pose.add_subtask(self.inspect, self.pick_cover_pose.cover)
         self.pick_cover_pose.set_ordered(s1, s2, s3, s4, s5)
-
-        # arm up
-        self.pick_cover_move_arm_up = Method("pick_cover_move_arm_up", cover=type_item)
-        self.pick_cover_move_arm_up.set_task(
-            self.t_pick_cover, self.pick_cover_move_arm_up.cover
-        )
-        self.pick_cover_move_arm_up.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.pick_cover_move_arm_up.add_precondition(self.pallet_is_available())
-        self.pick_cover_move_arm_up.add_precondition(
-            self.holding(self.pick_cover_move_arm_up.cover)
-        )
-        self.pick_cover_move_arm_up.add_precondition(Not(self.cover_pose_known()))
-        self.pick_cover_move_arm_up.add_precondition(Not(self.cover_is_leveled()))
-        self.pick_cover_move_arm_up.add_precondition(
-            Not(self.item_status_known(self.pick_cover_move_arm_up.cover))
-        )
-        s1 = self.pick_cover_move_arm_up.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.pick_cover_move_arm_up.add_subtask(self.get_cover_pose)
-        s3 = self.pick_cover_move_arm_up.add_subtask(self.level_cover)
-        s4 = self.pick_cover_move_arm_up.add_subtask(
-            self.move_arm, self.cover_transition_pose
-        )
-        s5 = self.pick_cover_move_arm_up.add_subtask(
-            self.move_arm, self.over_cover_station
-        )
-        s6 = self.pick_cover_move_arm_up.add_subtask(
-            self.inspect, self.pick_cover_move_arm_up.cover
-        )
-        self.pick_cover_move_arm_up.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # pick
         self.pick_cover_pick = Method("pick_cover_pick", cover=type_item)
@@ -939,13 +908,12 @@ class SLVRDomain(Bridge):
         s1 = self.pick_cover_pick.add_subtask(
             self.pick_cover, self.pick_cover_pick.cover
         )
-        s2 = self.pick_cover_pick.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.pick_cover_pick.add_subtask(self.get_cover_pose)
-        s4 = self.pick_cover_pick.add_subtask(self.level_cover)
-        s5 = self.pick_cover_pick.add_subtask(self.move_arm, self.cover_transition_pose)
-        s6 = self.pick_cover_pick.add_subtask(self.move_arm, self.over_cover_station)
-        s7 = self.pick_cover_pick.add_subtask(self.inspect, self.pick_cover_pick.cover)
-        self.pick_cover_pick.set_ordered(s1, s2, s3, s4, s5, s6, s7)
+        s2 = self.pick_cover_pick.add_subtask(self.get_cover_pose)
+        s3 = self.pick_cover_pick.add_subtask(self.level_cover)
+        s4 = self.pick_cover_pick.add_subtask(self.move_arm, self.cover_transition_pose)
+        s5 = self.pick_cover_pick.add_subtask(self.move_arm, self.over_cover_station)
+        s6 = self.pick_cover_pick.add_subtask(self.inspect, self.pick_cover_pick.cover)
+        self.pick_cover_pick.set_ordered(s1, s2, s3, s4, s5, s6)
 
         # full
         self.pick_cover_full = Method("pick_cover_full", cover=type_item)
@@ -966,13 +934,12 @@ class SLVRDomain(Bridge):
         s2 = self.pick_cover_full.add_subtask(
             self.pick_cover, self.pick_cover_full.cover
         )
-        s3 = self.pick_cover_full.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.pick_cover_full.add_subtask(self.get_cover_pose)
-        s5 = self.pick_cover_full.add_subtask(self.level_cover)
-        s6 = self.pick_cover_full.add_subtask(self.move_arm, self.cover_transition_pose)
-        s7 = self.pick_cover_full.add_subtask(self.move_arm, self.over_cover_station)
-        s8 = self.pick_cover_full.add_subtask(self.inspect, self.pick_cover_full.cover)
-        self.pick_cover_full.set_ordered(s1, s2, s3, s4, s5, s6, s7, s8)
+        s3 = self.pick_cover_full.add_subtask(self.get_cover_pose)
+        s4 = self.pick_cover_full.add_subtask(self.level_cover)
+        s5 = self.pick_cover_full.add_subtask(self.move_arm, self.cover_transition_pose)
+        s6 = self.pick_cover_full.add_subtask(self.move_arm, self.over_cover_station)
+        s7 = self.pick_cover_full.add_subtask(self.inspect, self.pick_cover_full.cover)
+        self.pick_cover_full.set_ordered(s1, s2, s3, s4, s5, s6, s7)
 
         # PUT COVER
         # wait
@@ -1672,7 +1639,6 @@ class SLVRDomain(Bridge):
             self.pick_cover_transition,
             self.pick_cover_level,
             self.pick_cover_pose,
-            self.pick_cover_move_arm_up,
             self.pick_cover_pick,
             self.pick_cover_full,
             self.put_cover_wait,
