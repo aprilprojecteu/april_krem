@@ -97,6 +97,7 @@ class SLVRDomain(Bridge):
             ArmPose.propeller_transition_pose.name
         ]
         self.over_propeller_station = self.objects[ArmPose.over_propeller_station.name]
+        self.cable_transition_pose = self.objects[ArmPose.cable_transition_pose.name]
 
         self.create_enum_objects(Status)
         self.ok = self.objects[Status.ok.name]
@@ -169,7 +170,7 @@ class SLVRDomain(Bridge):
             self.t_get_cable, self.get_cable_perceive.cable
         )
         self.get_cable_perceive.add_precondition(
-            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+            self.current_arm_pose(self.cable_transition_pose)
         )
         self.get_cable_perceive.add_precondition(self.pallet_is_available())
         self.get_cable_perceive.add_precondition(
@@ -188,6 +189,38 @@ class SLVRDomain(Bridge):
         self.get_cable_perceive.add_subtask(
             self.perceive_item, self.get_cable_perceive.cable
         )
+
+        # pallet available, cables available, move to transition pose and perceive cables
+        self.get_cable_transition = Method(
+            "get_cable_transition", cable=type_item, color=type_color
+        )
+        self.get_cable_transition.set_task(
+            self.t_get_cable, self.get_cable_transition.cable
+        )
+        self.get_cable_transition.add_precondition(
+            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+        )
+        self.get_cable_transition.add_precondition(self.pallet_is_available())
+        self.get_cable_transition.add_precondition(
+            Not(self.perceived_item(self.get_cable_transition.cable))
+        )
+        self.get_cable_transition.add_precondition(
+            self.current_cable_color(self.get_cable_transition.color)
+        )
+        self.get_cable_transition.add_precondition(
+            self.cable_color_available(self.get_cable_transition.color)
+        )
+        self.get_cable_transition.add_precondition(self.holding(self.nothing))
+        self.get_cable_transition.add_precondition(
+            Not(self.cable_soldered(self.get_cable_transition.color))
+        )
+        s1 = self.get_cable_transition.add_subtask(
+            self.move_arm, self.cable_transition_pose
+        )
+        s2 = self.get_cable_transition.add_subtask(
+            self.perceive_item, self.get_cable_transition.cable
+        )
+        self.get_cable_transition.set_ordered(s1, s2)
 
         # move to home pose, pallet available, cable missing, perceive them
         self.get_cable_redo = Method(
@@ -213,10 +246,11 @@ class SLVRDomain(Bridge):
         s2 = self.get_cable_redo.add_subtask(
             self.get_next_cable, self.get_cable_redo.color
         )
-        s3 = self.get_cable_redo.add_subtask(
+        s3 = self.get_cable_redo.add_subtask(self.move_arm, self.cable_transition_pose)
+        s4 = self.get_cable_redo.add_subtask(
             self.perceive_item, self.get_cable_redo.cable
         )
-        self.get_cable_redo.set_ordered(s1, s2, s3)
+        self.get_cable_redo.set_ordered(s1, s2, s3, s4)
 
         # already at home pose, pallet available, cable missing, perceive them
         self.get_cable_cables = Method(
@@ -244,9 +278,12 @@ class SLVRDomain(Bridge):
             self.get_next_cable, self.get_cable_cables.color
         )
         s2 = self.get_cable_cables.add_subtask(
+            self.move_arm, self.cable_transition_pose
+        )
+        s3 = self.get_cable_cables.add_subtask(
             self.perceive_item, self.get_cable_cables.cable
         )
-        self.get_cable_cables.set_ordered(s1, s2)
+        self.get_cable_cables.set_ordered(s1, s2, s3)
 
         # already at home pose, pallet unavailable, cable missing, perceive them
         self.get_cable_pallet = Method(
@@ -273,9 +310,12 @@ class SLVRDomain(Bridge):
             self.get_next_cable, self.get_cable_pallet.color
         )
         s3 = self.get_cable_pallet.add_subtask(
+            self.move_arm, self.cable_transition_pose
+        )
+        s4 = self.get_cable_pallet.add_subtask(
             self.perceive_item, self.get_cable_pallet.cable
         )
-        self.get_cable_pallet.set_ordered(s1, s2, s3)
+        self.get_cable_pallet.set_ordered(s1, s2, s3, s4)
 
         # move to home pose, get new pallet, new cables and perceive them
         self.get_cable_full = Method(
@@ -307,10 +347,11 @@ class SLVRDomain(Bridge):
         s3 = self.get_cable_full.add_subtask(
             self.get_next_cable, self.get_cable_full.color
         )
-        s4 = self.get_cable_full.add_subtask(
+        s4 = self.get_cable_full.add_subtask(self.move_arm, self.cable_transition_pose)
+        s5 = self.get_cable_full.add_subtask(
             self.perceive_item, self.get_cable_full.cable
         )
-        self.get_cable_full.set_ordered(s1, s2, s3, s4)
+        self.get_cable_full.set_ordered(s1, s2, s3, s4, s5)
 
         # PICK CABLE
         self.pick_cable_inspect = Method("pick_cable_inspect", cable=type_item)
@@ -339,7 +380,7 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_over_station.add_precondition(self.pallet_is_available())
         self.pick_cable_over_station.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
+            self.current_arm_pose(self.cable_transition_pose)
         )
         self.pick_cable_over_station.add_precondition(self.cable_pose_known())
         s1 = self.pick_cable_over_station.add_subtask(
@@ -350,36 +391,44 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_over_station.set_ordered(s1, s2)
 
+        # cable transition pose
+        self.pick_cable_transition = Method(
+            "pick_cable_transition", cable=type_item
+        )
+        self.pick_cable_transition.set_task(
+            self.t_pick_cable, self.pick_cable_transition.cable
+        )
+        self.pick_cable_transition.add_precondition(
+            self.holding(self.pick_cable_transition.cable)
+        )
+        self.pick_cable_transition.add_precondition(self.pallet_is_available())
+        self.pick_cable_transition.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
+        self.pick_cable_transition.add_precondition(self.cable_pose_known())
+        s1 = self.pick_cable_transition.add_subtask(
+            self.move_arm, self.cable_transition_pose
+        )
+        s2 = self.pick_cable_transition.add_subtask(
+            self.move_arm, self.over_cable_station
+        )
+        s3 = self.pick_cable_transition.add_subtask(
+            self.inspect, self.pick_cable_transition.cable
+        )
+        self.pick_cable_transition.set_ordered(s1, s2, s3)
+
         # get cable pose
         self.pick_cable_pose = Method("pick_cable_pose", cable=type_item)
         self.pick_cable_pose.set_task(self.t_pick_cable, self.pick_cable_pose.cable)
         self.pick_cable_pose.add_precondition(self.holding(self.pick_cable_pose.cable))
         self.pick_cable_pose.add_precondition(self.pallet_is_available())
-        self.pick_cable_pose.add_precondition(self.current_arm_pose(self.arm_up))
+        self.pick_cable_pose.add_precondition(self.current_arm_pose(self.unknown_pose))
         self.pick_cable_pose.add_precondition(Not(self.cable_pose_known()))
         s1 = self.pick_cable_pose.add_subtask(self.get_cable_pose)
-        s2 = self.pick_cable_pose.add_subtask(self.move_arm, self.over_cable_station)
-        s3 = self.pick_cable_pose.add_subtask(self.inspect, self.pick_cable_pose.cable)
-        self.pick_cable_pose.set_ordered(s1, s2, s3)
-
-        # arm up
-        self.pick_cable_arm_up = Method("pick_cable_arm_up", cable=type_item)
-        self.pick_cable_arm_up.set_task(self.t_pick_cable, self.pick_cable_arm_up.cable)
-        self.pick_cable_arm_up.add_precondition(
-            self.holding(self.pick_cable_arm_up.cable)
-        )
-        self.pick_cable_arm_up.add_precondition(self.pallet_is_available())
-        self.pick_cable_arm_up.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
-        )
-        self.pick_cable_arm_up.add_precondition(Not(self.cable_pose_known()))
-        s1 = self.pick_cable_arm_up.add_subtask(self.move_arm, self.arm_up)
-        s2 = self.pick_cable_arm_up.add_subtask(self.get_cable_pose)
-        s3 = self.pick_cable_arm_up.add_subtask(self.move_arm, self.over_cable_station)
-        s4 = self.pick_cable_arm_up.add_subtask(
-            self.inspect, self.pick_cable_arm_up.cable
-        )
-        self.pick_cable_arm_up.set_ordered(s1, s2, s3, s4)
+        s2 = self.pick_cable_pose.add_subtask(self.move_arm, self.cable_transition_pose)
+        s3 = self.pick_cable_pose.add_subtask(self.move_arm, self.over_cable_station)
+        s4 = self.pick_cable_pose.add_subtask(self.inspect, self.pick_cable_pose.cable)
+        self.pick_cable_pose.set_ordered(s1, s2, s3, s4)
 
         # pick
         self.pick_cable_pick = Method(
@@ -404,8 +453,8 @@ class SLVRDomain(Bridge):
         s1 = self.pick_cable_pick.add_subtask(
             self.pick_cable, self.pick_cable_pick.cable, self.pick_cable_pick.color
         )
-        s2 = self.pick_cable_pick.add_subtask(self.move_arm, self.arm_up)
-        s3 = self.pick_cable_pick.add_subtask(self.get_cable_pose)
+        s2 = self.pick_cable_pick.add_subtask(self.get_cable_pose)
+        s3 = self.pick_cable_pick.add_subtask(self.move_arm, self.cable_transition_pose)
         s4 = self.pick_cable_pick.add_subtask(self.move_arm, self.over_cable_station)
         s5 = self.pick_cable_pick.add_subtask(self.inspect, self.pick_cable_pick.cable)
         self.pick_cable_pick.set_ordered(s1, s2, s3, s4, s5)
@@ -427,15 +476,15 @@ class SLVRDomain(Bridge):
         self.pick_cable_full.add_precondition(self.holding(self.nothing))
         self.pick_cable_full.add_precondition(self.pallet_is_available())
         self.pick_cable_full.add_precondition(
-            Or(self.current_arm_pose(self.home), self.current_arm_pose(self.arm_up))
+            self.current_arm_pose(self.cable_transition_pose)
         )
         self.pick_cable_full.add_precondition(Not(self.cable_pose_known()))
         s1 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_dispenser)
         s2 = self.pick_cable_full.add_subtask(
             self.pick_cable, self.pick_cable_full.cable, self.pick_cable_full.color
         )
-        s3 = self.pick_cable_full.add_subtask(self.move_arm, self.arm_up)
-        s4 = self.pick_cable_full.add_subtask(self.get_cable_pose)
+        s3 = self.pick_cable_full.add_subtask(self.get_cable_pose)
+        s4 = self.pick_cable_full.add_subtask(self.move_arm, self.cable_transition_pose)
         s5 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_station)
         s6 = self.pick_cable_full.add_subtask(self.inspect, self.pick_cable_full.cable)
         self.pick_cable_full.set_ordered(s1, s2, s3, s4, s5, s6)
@@ -1609,14 +1658,15 @@ class SLVRDomain(Bridge):
 
         self.methods = (
             self.get_cable_perceive,
+            self.get_cable_transition,
             self.get_cable_redo,
             self.get_cable_cables,
             self.get_cable_pallet,
             self.get_cable_full,
             self.pick_cable_inspect,
             self.pick_cable_over_station,
+            self.pick_cable_transition,
             self.pick_cable_pose,
-            self.pick_cable_arm_up,
             self.pick_cable_pick,
             self.pick_cable_full,
             self.solder_cable_move_arm,
@@ -1807,12 +1857,10 @@ class SLVRDomain(Bridge):
                 _callable=actions.get_cable_pose,
             )
             self.get_cable_pose.add_precondition(self.holding(self.cable))
-            self.get_cable_pose.add_precondition(self.current_arm_pose(self.arm_up))
             self.get_cable_pose.add_precondition(Not(self.cable_pose_known()))
             self.get_cable_pose.add_effect(
                 self.current_arm_pose(self.unknown_pose), True
             )
-            self.get_cable_pose.add_effect(self.current_arm_pose(self.arm_up), False)
             self.get_cable_pose.add_effect(self.cable_pose_known(), True)
 
             self.get_cover_pose, _ = self.create_action(
@@ -1820,18 +1868,17 @@ class SLVRDomain(Bridge):
                 _callable=actions.get_cover_pose,
             )
             self.get_cover_pose.add_precondition(self.holding(self.cover))
-            self.get_cover_pose.add_precondition(
-                self.current_arm_pose(self.unknown_pose)
-            )
             self.get_cover_pose.add_precondition(Not(self.cover_pose_known()))
             self.get_cover_pose.add_effect(self.cover_pose_known(), True)
+            self.get_cover_pose.add_effect(
+                self.current_arm_pose(self.unknown_pose), True
+            )
 
             self.level_cover, _ = self.create_action(
                 "level_cover",
                 _callable=actions.level_cover,
             )
             self.level_cover.add_precondition(self.holding(self.cover))
-            self.level_cover.add_precondition(self.current_arm_pose(self.unknown_pose))
             self.level_cover.add_precondition(self.cover_pose_known())
             self.level_cover.add_precondition(Not(self.cover_is_leveled()))
             self.level_cover.add_effect(self.cover_is_leveled(), True)

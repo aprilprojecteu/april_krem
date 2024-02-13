@@ -28,6 +28,7 @@ class ArmPose(StrEnum):
     over_cable_dispenser = "over cable soldering dispenser"
     over_cable_station = "over cable soldering station"
     soldering_pose = "cable soldering pose"
+    cable_transition_pose = "cable transition pose"
 
     over_feeding_conveyor = "over feeding conveyor"
 
@@ -508,6 +509,11 @@ class Actions:
                 )
             else:
                 result, msg = False, "failed"
+        elif arm_pose == ArmPose.cable_transition_pose:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_to_soldering_transition_pose",
+                timeout=self._robot_actions_timeout,
+            )
         elif arm_pose == ArmPose.over_feeding_conveyor:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_feeding_conveyor",
