@@ -380,7 +380,7 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_over_station.add_precondition(self.pallet_is_available())
         self.pick_cable_over_station.add_precondition(
-            self.current_arm_pose(self.cable_transition_pose)
+            self.current_arm_pose(self.lifted_cable_pose)
         )
         s1 = self.pick_cable_over_station.add_subtask(
             self.move_arm, self.over_cable_station
@@ -390,29 +390,6 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_over_station.set_ordered(s1, s2)
 
-        # cable transition pose
-        self.pick_cable_transition = Method("pick_cable_transition", cable=type_item)
-        self.pick_cable_transition.set_task(
-            self.t_pick_cable, self.pick_cable_transition.cable
-        )
-        self.pick_cable_transition.add_precondition(
-            self.holding(self.pick_cable_transition.cable)
-        )
-        self.pick_cable_transition.add_precondition(self.pallet_is_available())
-        self.pick_cable_transition.add_precondition(
-            self.current_arm_pose(self.lifted_cable_pose)
-        )
-        s1 = self.pick_cable_transition.add_subtask(
-            self.move_arm, self.cable_transition_pose
-        )
-        s2 = self.pick_cable_transition.add_subtask(
-            self.move_arm, self.over_cable_station
-        )
-        s3 = self.pick_cable_transition.add_subtask(
-            self.inspect, self.pick_cable_transition.cable
-        )
-        self.pick_cable_transition.set_ordered(s1, s2, s3)
-
         # lift cable
         self.pick_cable_lift = Method("pick_cable_lift", cable=type_item)
         self.pick_cable_lift.set_task(self.t_pick_cable, self.pick_cable_lift.cable)
@@ -420,10 +397,9 @@ class SLVRDomain(Bridge):
         self.pick_cable_lift.add_precondition(self.pallet_is_available())
         self.pick_cable_lift.add_precondition(self.current_arm_pose(self.unknown_pose))
         s1 = self.pick_cable_lift.add_subtask(self.move_arm, self.lifted_cable_pose)
-        s2 = self.pick_cable_lift.add_subtask(self.move_arm, self.cable_transition_pose)
-        s3 = self.pick_cable_lift.add_subtask(self.move_arm, self.over_cable_station)
-        s4 = self.pick_cable_lift.add_subtask(self.inspect, self.pick_cable_lift.cable)
-        self.pick_cable_lift.set_ordered(s1, s2, s3, s4)
+        s2 = self.pick_cable_lift.add_subtask(self.move_arm, self.over_cable_station)
+        s3 = self.pick_cable_lift.add_subtask(self.inspect, self.pick_cable_lift.cable)
+        self.pick_cable_lift.set_ordered(s1, s2, s3)
 
         # pick
         self.pick_cable_pick = Method(
@@ -447,11 +423,10 @@ class SLVRDomain(Bridge):
         s1 = self.pick_cable_pick.add_subtask(
             self.pick_cable, self.pick_cable_pick.cable, self.pick_cable_pick.color
         )
-        s2 = self.pick_cable_pick.add_subtask(self.get_cable_pose)
-        s3 = self.pick_cable_pick.add_subtask(self.move_arm, self.cable_transition_pose)
-        s4 = self.pick_cable_pick.add_subtask(self.move_arm, self.over_cable_station)
-        s5 = self.pick_cable_pick.add_subtask(self.inspect, self.pick_cable_pick.cable)
-        self.pick_cable_pick.set_ordered(s1, s2, s3, s4, s5)
+        s2 = self.pick_cable_pick.add_subtask(self.move_arm, self.lifted_cable_pose)
+        s3 = self.pick_cable_pick.add_subtask(self.move_arm, self.over_cable_station)
+        s4 = self.pick_cable_pick.add_subtask(self.inspect, self.pick_cable_pick.cable)
+        self.pick_cable_pick.set_ordered(s1, s2, s3, s4)
 
         # move arm over cable dispenser, pick cable, move arm up, move arm over soldering station, inspect cable
         self.pick_cable_full = Method(
@@ -477,10 +452,9 @@ class SLVRDomain(Bridge):
             self.pick_cable, self.pick_cable_full.cable, self.pick_cable_full.color
         )
         s3 = self.pick_cable_full.add_subtask(self.move_arm, self.lifted_cable_pose)
-        s4 = self.pick_cable_full.add_subtask(self.move_arm, self.cable_transition_pose)
-        s5 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_station)
-        s6 = self.pick_cable_full.add_subtask(self.inspect, self.pick_cable_full.cable)
-        self.pick_cable_full.set_ordered(s1, s2, s3, s4, s5, s6)
+        s4 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_station)
+        s5 = self.pick_cable_full.add_subtask(self.inspect, self.pick_cable_full.cable)
+        self.pick_cable_full.set_ordered(s1, s2, s3, s4, s5)
 
         # SOLDER CABLE
         self.solder_cable_move_arm = Method(
@@ -1684,7 +1658,6 @@ class SLVRDomain(Bridge):
             self.get_cable_full,
             self.pick_cable_inspect,
             self.pick_cable_over_station,
-            self.pick_cable_transition,
             self.pick_cable_lift,
             self.pick_cable_pick,
             self.pick_cable_full,
