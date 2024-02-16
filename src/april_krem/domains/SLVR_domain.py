@@ -1542,6 +1542,34 @@ class SLVRDomain(Bridge):
             self.reject_item, self.put_propeller_reject.propeller
         )
 
+        # reject move to boxes
+        self.put_propeller_reject_boxes = Method(
+            "put_propeller_reject_boxes", propeller=type_item
+        )
+        self.put_propeller_reject_boxes.set_task(
+            self.t_put_propeller, self.put_propeller_reject_boxes.propeller
+        )
+        self.put_propeller_reject_boxes.add_precondition(
+            self.current_arm_pose(self.propeller_transition_pose)
+        )
+        self.put_propeller_reject_boxes.add_precondition(self.space_in_reject_box())
+        self.put_propeller_reject_boxes.add_precondition(
+            self.holding(self.put_propeller_reject_boxes.propeller)
+        )
+        self.put_propeller_reject_boxes.add_precondition(
+            self.item_status_known(self.put_propeller_reject_boxes.propeller)
+        )
+        self.put_propeller_reject_boxes.add_precondition(
+            self.status_of_item(self.put_propeller_reject_boxes.propeller, self.nok)
+        )
+        s1 = self.put_propeller_reject_boxes.add_subtask(
+            self.move_arm, self.over_reject_box
+        )
+        s2 = self.put_propeller_reject_boxes.add_subtask(
+            self.reject_item, self.put_propeller_reject_boxes.propeller
+        )
+        self.put_propeller_reject_boxes.set_ordered(s1, s2)
+
         # reject full
         self.put_propeller_reject_full = Method(
             "put_propeller_reject_full", propeller=type_item
@@ -1563,12 +1591,15 @@ class SLVRDomain(Bridge):
             self.status_of_item(self.put_propeller_reject_full.propeller, self.nok)
         )
         s1 = self.put_propeller_reject_full.add_subtask(
-            self.move_arm, self.over_reject_box
+            self.move_arm, self.propeller_transition_pose
         )
         s2 = self.put_propeller_reject_full.add_subtask(
+            self.move_arm, self.over_reject_box
+        )
+        s3 = self.put_propeller_reject_full.add_subtask(
             self.reject_item, self.put_propeller_reject_full.propeller
         )
-        self.put_propeller_reject_full.set_ordered(s1, s2)
+        self.put_propeller_reject_full.set_ordered(s1, s2, s3)
 
         # ASSEMBLE PROPELLER
         # get propeller
@@ -1739,6 +1770,7 @@ class SLVRDomain(Bridge):
             self.put_propeller_arm_up,
             self.put_propeller_full,
             self.put_propeller_reject,
+            self.put_propeller_reject_boxes,
             self.put_propeller_reject_full,
             self.assemble_propeller_get,
             self.assemble_propeller_pick,
