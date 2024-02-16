@@ -141,6 +141,26 @@ class Environment:
         )
 
     def reset_env(self) -> None:
+        if self._use_case == "uc5_3":
+            self.epic_done = {
+                Epic.epic2: True,
+                Epic.epic3: False,
+                Epic.epic4: False,
+            }
+        elif self._use_case == "uc5_4":
+            self.epic_done = {
+                Epic.epic2: True,
+                Epic.epic3: True,
+                Epic.epic4: False,
+            }
+        else:
+            self.epic_done = {
+                Epic.epic2: False,
+                Epic.epic3: False,
+                Epic.epic4: False,
+            }
+        self.current_epic = None
+
         self.holding_item = Item.nothing
         self.arm_pose = ArmPose.unknown
 
@@ -180,12 +200,6 @@ class Environment:
             Item.propeller: 0,
         }
 
-        self.item_finished = {
-            Item.cable: False,
-            Item.cover: False,
-            Item.propeller: False,
-        }
-
         self._perceived_objects.clear()
 
     def reset_env_keep_counters(self) -> None:
@@ -216,15 +230,8 @@ class Environment:
         self.cover_assembled = False
         self.propeller_assembled = False
 
-        self.pallet_available = False
         self.cover_available = False
         self.propeller_available = False
-
-        self.item_finished = {
-            Item.cable: False,
-            Item.cover: False,
-            Item.propeller: False,
-        }
 
         self._perceived_objects.clear()
 
@@ -317,6 +324,8 @@ class Environment:
         )
 
     def space_in_reject_box(self) -> bool:
+        return True
+        # Box big enough, remove counters for now
         return (
             self.reject_box_status[Item.cable] < 4
             and self.reject_box_status[Item.cover] < 1
