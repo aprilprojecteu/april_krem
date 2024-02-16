@@ -497,10 +497,14 @@ class Actions:
                 timeout=self._robot_actions_timeout,
             )
         elif arm_pose == ArmPose.over_cable_station:
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "move_over_cable_soldering_station",
-                timeout=self._robot_actions_timeout,
-            )
+            if self._env.current_color is not None:
+                result, msg = PlanDispatcher.run_symbolic_action(
+                    "move_over_cable_soldering_station",
+                    [self._env.current_color.value],
+                    timeout=self._robot_actions_timeout,
+                )
+            else:
+                result, msg = False, "failed"
         elif arm_pose == ArmPose.soldering_pose:
             if self._env.current_color is not None:
                 result, msg = PlanDispatcher.run_symbolic_action(
