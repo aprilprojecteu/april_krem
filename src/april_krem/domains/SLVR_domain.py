@@ -90,6 +90,7 @@ class SLVRDomain(Bridge):
         self.over_cable_dispenser = self.objects[ArmPose.over_cable_dispenser.name]
         self.over_cable_station = self.objects[ArmPose.over_cable_station.name]
         self.soldering_pose = self.objects[ArmPose.soldering_pose.name]
+        self.lifted_cable_pose = self.objects[ArmPose.lifted_cable_pose.name]
         self.over_feeding_conveyor = self.objects[ArmPose.over_feeding_conveyor.name]
         self.cover_transition_pose = self.objects[ArmPose.cover_transition_pose.name]
         self.over_cover_station = self.objects[ArmPose.over_cover_station.name]
@@ -365,7 +366,6 @@ class SLVRDomain(Bridge):
         self.pick_cable_inspect.add_precondition(
             self.current_arm_pose(self.over_cable_station)
         )
-        self.pick_cable_inspect.add_precondition(self.cable_pose_known())
         self.pick_cable_inspect.add_subtask(self.inspect, self.pick_cable_inspect.cable)
 
         # over station
@@ -382,7 +382,6 @@ class SLVRDomain(Bridge):
         self.pick_cable_over_station.add_precondition(
             self.current_arm_pose(self.cable_transition_pose)
         )
-        self.pick_cable_over_station.add_precondition(self.cable_pose_known())
         s1 = self.pick_cable_over_station.add_subtask(
             self.move_arm, self.over_cable_station
         )
@@ -392,9 +391,7 @@ class SLVRDomain(Bridge):
         self.pick_cable_over_station.set_ordered(s1, s2)
 
         # cable transition pose
-        self.pick_cable_transition = Method(
-            "pick_cable_transition", cable=type_item
-        )
+        self.pick_cable_transition = Method("pick_cable_transition", cable=type_item)
         self.pick_cable_transition.set_task(
             self.t_pick_cable, self.pick_cable_transition.cable
         )
@@ -403,9 +400,8 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_transition.add_precondition(self.pallet_is_available())
         self.pick_cable_transition.add_precondition(
-            self.current_arm_pose(self.unknown_pose)
+            self.current_arm_pose(self.lifted_cable_pose)
         )
-        self.pick_cable_transition.add_precondition(self.cable_pose_known())
         s1 = self.pick_cable_transition.add_subtask(
             self.move_arm, self.cable_transition_pose
         )
@@ -417,18 +413,17 @@ class SLVRDomain(Bridge):
         )
         self.pick_cable_transition.set_ordered(s1, s2, s3)
 
-        # get cable pose
-        self.pick_cable_pose = Method("pick_cable_pose", cable=type_item)
-        self.pick_cable_pose.set_task(self.t_pick_cable, self.pick_cable_pose.cable)
-        self.pick_cable_pose.add_precondition(self.holding(self.pick_cable_pose.cable))
-        self.pick_cable_pose.add_precondition(self.pallet_is_available())
-        self.pick_cable_pose.add_precondition(self.current_arm_pose(self.unknown_pose))
-        self.pick_cable_pose.add_precondition(Not(self.cable_pose_known()))
-        s1 = self.pick_cable_pose.add_subtask(self.get_cable_pose)
-        s2 = self.pick_cable_pose.add_subtask(self.move_arm, self.cable_transition_pose)
-        s3 = self.pick_cable_pose.add_subtask(self.move_arm, self.over_cable_station)
-        s4 = self.pick_cable_pose.add_subtask(self.inspect, self.pick_cable_pose.cable)
-        self.pick_cable_pose.set_ordered(s1, s2, s3, s4)
+        # lift cable
+        self.pick_cable_lift = Method("pick_cable_lift", cable=type_item)
+        self.pick_cable_lift.set_task(self.t_pick_cable, self.pick_cable_lift.cable)
+        self.pick_cable_lift.add_precondition(self.holding(self.pick_cable_lift.cable))
+        self.pick_cable_lift.add_precondition(self.pallet_is_available())
+        self.pick_cable_lift.add_precondition(self.current_arm_pose(self.unknown_pose))
+        s1 = self.pick_cable_lift.add_subtask(self.move_arm, self.lifted_cable_pose)
+        s2 = self.pick_cable_lift.add_subtask(self.move_arm, self.cable_transition_pose)
+        s3 = self.pick_cable_lift.add_subtask(self.move_arm, self.over_cable_station)
+        s4 = self.pick_cable_lift.add_subtask(self.inspect, self.pick_cable_lift.cable)
+        self.pick_cable_lift.set_ordered(s1, s2, s3, s4)
 
         # pick
         self.pick_cable_pick = Method(
@@ -449,7 +444,6 @@ class SLVRDomain(Bridge):
         self.pick_cable_pick.add_precondition(
             self.current_arm_pose(self.over_cable_dispenser)
         )
-        self.pick_cable_pick.add_precondition(Not(self.cable_pose_known()))
         s1 = self.pick_cable_pick.add_subtask(
             self.pick_cable, self.pick_cable_pick.cable, self.pick_cable_pick.color
         )
@@ -478,12 +472,11 @@ class SLVRDomain(Bridge):
         self.pick_cable_full.add_precondition(
             self.current_arm_pose(self.cable_transition_pose)
         )
-        self.pick_cable_full.add_precondition(Not(self.cable_pose_known()))
         s1 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_dispenser)
         s2 = self.pick_cable_full.add_subtask(
             self.pick_cable, self.pick_cable_full.cable, self.pick_cable_full.color
         )
-        s3 = self.pick_cable_full.add_subtask(self.get_cable_pose)
+        s3 = self.pick_cable_full.add_subtask(self.move_arm, self.lifted_cable_pose)
         s4 = self.pick_cable_full.add_subtask(self.move_arm, self.cable_transition_pose)
         s5 = self.pick_cable_full.add_subtask(self.move_arm, self.over_cable_station)
         s6 = self.pick_cable_full.add_subtask(self.inspect, self.pick_cable_full.cable)
@@ -1666,7 +1659,7 @@ class SLVRDomain(Bridge):
             self.pick_cable_inspect,
             self.pick_cable_over_station,
             self.pick_cable_transition,
-            self.pick_cable_pose,
+            self.pick_cable_lift,
             self.pick_cable_pick,
             self.pick_cable_full,
             self.solder_cable_move_arm,
@@ -1852,6 +1845,7 @@ class SLVRDomain(Bridge):
             )
             self.pick_propeller.add_effect(self.perceived_item(p), False)
 
+            # NOT USED CURRENTLY
             self.get_cable_pose, _ = self.create_action(
                 "get_cable_pose",
                 _callable=actions.get_cable_pose,

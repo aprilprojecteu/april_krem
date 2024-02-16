@@ -29,6 +29,7 @@ class ArmPose(StrEnum):
     over_cable_station = "over cable soldering station"
     soldering_pose = "cable soldering pose"
     cable_transition_pose = "cable transition pose"
+    lifted_cable_pose = "lift up cable pose"
 
     over_feeding_conveyor = "over feeding conveyor"
 
@@ -514,6 +515,11 @@ class Actions:
                 "move_to_soldering_transition_pose",
                 timeout=self._robot_actions_timeout,
             )
+        elif arm_pose == ArmPose.lifted_cable_pose:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "lift_up_cable_soldering",
+                timeout=self._robot_actions_timeout,
+            )
         elif arm_pose == ArmPose.over_feeding_conveyor:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_feeding_conveyor",
@@ -631,6 +637,7 @@ class Actions:
             return result, msg
         return False, "failed"
 
+    # NOT USED CURRENTLY
     def get_cable_pose(self):
         result, msg = PlanDispatcher.run_symbolic_action(
             "get_cable_soldering_pose",
