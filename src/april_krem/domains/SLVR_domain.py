@@ -1060,6 +1060,32 @@ class SLVRDomain(Bridge):
         )
         self.put_cover_reject.add_subtask(self.reject_item, self.put_cover_reject.cover)
 
+        # move over boxes
+        self.put_cover_reject_boxes = Method("put_cover_reject_boxes", cover=type_item)
+        self.put_cover_reject_boxes.set_task(
+            self.t_put_cover, self.put_cover_reject_boxes.cover
+        )
+        self.put_cover_reject_boxes.add_precondition(
+            self.current_arm_pose(self.cover_transition_pose)
+        )
+        self.put_cover_reject_boxes.add_precondition(self.space_in_reject_box())
+        self.put_cover_reject_boxes.add_precondition(
+            self.holding(self.put_cover_reject_boxes.cover)
+        )
+        self.put_cover_reject_boxes.add_precondition(
+            self.item_status_known(self.put_cover_reject_boxes.cover)
+        )
+        self.put_cover_reject_boxes.add_precondition(
+            self.status_of_item(self.put_cover_reject_boxes.cover, self.nok)
+        )
+        s1 = self.put_cover_reject_boxes.add_subtask(
+            self.move_arm, self.over_reject_box
+        )
+        s2 = self.put_cover_reject_boxes.add_subtask(
+            self.reject_item, self.put_cover_reject_boxes.cover
+        )
+        self.put_cover_reject_boxes.set_ordered(s1, s2)
+
         # reject full
         self.put_cover_reject_full = Method("put_cover_reject_full", cover=type_item)
         self.put_cover_reject_full.set_task(
@@ -1078,11 +1104,14 @@ class SLVRDomain(Bridge):
         self.put_cover_reject_full.add_precondition(
             self.status_of_item(self.put_cover_reject_full.cover, self.nok)
         )
-        s1 = self.put_cover_reject_full.add_subtask(self.move_arm, self.over_reject_box)
-        s2 = self.put_cover_reject_full.add_subtask(
+        s1 = self.put_cover_reject_full.add_subtask(
+            self.move_arm, self.cover_transition_pose
+        )
+        s2 = self.put_cover_reject_full.add_subtask(self.move_arm, self.over_reject_box)
+        s3 = self.put_cover_reject_full.add_subtask(
             self.reject_item, self.put_cover_reject_full.cover
         )
-        self.put_cover_reject_full.set_ordered(s1, s2)
+        self.put_cover_reject_full.set_ordered(s1, s2, s3)
 
         # ASSEMBLE COVER
         # get cover
@@ -1688,6 +1717,7 @@ class SLVRDomain(Bridge):
             self.put_cover_move_arm,
             self.put_cover_full,
             self.put_cover_reject,
+            self.put_cover_reject_boxes,
             self.put_cover_reject_full,
             self.assemble_cover_get,
             self.assemble_cover_pick,
