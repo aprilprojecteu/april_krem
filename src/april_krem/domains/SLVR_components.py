@@ -762,6 +762,7 @@ class Actions:
                 self._env.epic_done[Epic.epic3] = True
                 self._env.current_epic = None
             else:
+                self._env.current_epic = None
                 self._env.pallet_available = False
                 self._env._krem_logging.cycle_complete = True
 
