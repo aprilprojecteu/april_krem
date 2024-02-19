@@ -19,6 +19,12 @@ class Item(Enum):
     pillow = "pillow"
 
 
+class Location(Enum):
+    table = "table"
+    scale = "scale"
+    box = "box"
+
+
 class ArmPose(Enum):
     unknown = "unknown"
     home = "home"
@@ -46,13 +52,19 @@ class Environment:
         self.item_in_hand = None
         self.arm_pose = ArmPose.unknown
 
-        self.pillow_perceived = False
+        self.pillow_perceived = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
         self.pillow_status = None
         self.item_size = None
         self.weighted_pillow = False
-        self.pillow_is_on_table = False
-        self.pillow_is_on_scale = False
-        self.pillow_is_in_box = False
+        self.pillow_location = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
 
         self.box_status = {
             Status.ok: 1,
@@ -80,13 +92,19 @@ class Environment:
         self.arm_pose = ArmPose.unknown
         self.item_in_hand = None
 
-        self.pillow_perceived = False
+        self.pillow_perceived = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
         self.pillow_status = None
         self.item_size = None
         self.weighted_pillow = False
-        self.pillow_is_on_table = False
-        self.pillow_is_on_scale = False
-        self.pillow_is_in_box = False
+        self.pillow_location = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
 
         self.box_status = {
             Status.ok: 1,
@@ -100,13 +118,19 @@ class Environment:
         self.arm_pose = ArmPose.unknown
         self.item_in_hand = None
 
-        self.pillow_perceived = False
+        self.pillow_perceived = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
         self.pillow_status = None
         self.item_size = None
         self.weighted_pillow = False
-        self.pillow_is_on_table = False
-        self.pillow_is_on_scale = False
-        self.pillow_is_in_box = False
+        self.pillow_location = {
+            Location.table: False,
+            Location.scale: False,
+            Location.box: False,
+        }
 
         self._perceived_objects.clear()
 
@@ -176,8 +200,8 @@ class Environment:
     def status_of_pillow(self, status: Status) -> bool:
         return self.pillow_status == status if self.pillow_status is not None else False
 
-    def perceived_pillow(self) -> bool:
-        return self.pillow_perceived
+    def perceived_pillow(self, location: Location) -> bool:
+        return self.pillow_perceived.get(location, False)
 
     def space_in_box(self, status: Status) -> bool:
         return self.box_status[status] < 3
@@ -185,14 +209,8 @@ class Environment:
     def pillow_weight_known(self) -> bool:
         return self.weighted_pillow
 
-    def pillow_on_table(self) -> bool:
-        return self.pillow_is_on_table
-
-    def pillow_on_scale(self) -> bool:
-        return self.pillow_is_on_scale
-
-    def pillow_in_box(self) -> bool:
-        return self.pillow_is_in_box
+    def pillow_is_on(self, location: Location) -> bool:
+        return self.pillow_location.get(location, False)
 
 
 class Actions:
@@ -214,7 +232,18 @@ class Actions:
             "~robot_actions_timeout", default="120"
         )
 
-    def perceive_pillow_on_table(self):
+    def get_next_pillow(self):
+        result, msg = PlanDispatcher.run_symbolic_action(
+            "get_next_pillow",
+            ["Waiting for new pillow on support."],
+            timeout=0.0,
+        )
+        if result:
+            self._env.pillow_location[Location.table] = True
+
+        return result, msg
+
+    def perceive_pillow(self, location: Location):
         self._env._clear_item_type("pillow")
         result, msg = PlanDispatcher.run_symbolic_action(
             "perceive_pillow",
@@ -224,29 +253,14 @@ class Actions:
             type, _ = self._env._get_item_type_and_id("pillow")
             if type is not None and "big" in type:
                 self._env.item_size = Size.big
-                self._env.pillow_perceived = True
-                self._env.pillow_is_on_table = True
+                self._env.pillow_perceived[location] = True
+                self._env.pillow_location[location] = True
             elif type is not None and "small" in type:
                 self._env.item_size = Size.small
-                self._env.pillow_perceived = True
-                self._env.pillow_is_on_table = True
+                self._env.pillow_perceived[location] = True
+                self._env.pillow_location[location] = True
             else:
                 self._env.item_size = None
-                return False, "failed"
-        return result, msg
-
-    def perceive_pillow_on_scale(self):
-        self._env._clear_item_type("pillow")
-        result, msg = PlanDispatcher.run_symbolic_action(
-            "perceive_pillow",
-            timeout=self._non_robot_actions_timeout,
-        )
-        if result:
-            type, _ = self._env._get_item_type_and_id("pillow")
-            if type is not None and self._env.item_size.value in type:
-                self._env.pillow_perceived = True
-                self._env.pillow_is_on_scale = True
-            else:
                 return False, "failed"
         return result, msg
 
@@ -282,7 +296,7 @@ class Actions:
             self._env.arm_pose = arm_pose
         return result, msg
 
-    def pick_pillow(self, pillow: Item, size: Size):
+    def pick_pillow(self, pillow: Item, size: Size, location: Location):
         # arguments: [ID of pillow]
         class_name, id = self._env._get_item_type_and_id("pillow")
         if class_name is not None:
@@ -297,9 +311,8 @@ class Actions:
                 self._env.holding_item = Item.pillow
                 self._env.item_in_hand = class_name + "_" + str(id)
                 self._env.arm_pose = ArmPose.unknown
-                self._env.pillow_perceived = False
-                self._env.pillow_is_on_table = False
-                self._env.pillow_is_on_scale = False
+                self._env.pillow_perceived[location] = False
+                self._env.pillow_location[location] = False
             return result, msg
         return False, "failed"
 
@@ -316,7 +329,7 @@ class Actions:
                 self._env.holding_item = Item.nothing
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
-                self._env.pillow_is_on_scale = True
+                self._env.pillow_location[Location.scale] = True
             return result, msg
         return False, "failed"
 
@@ -347,7 +360,7 @@ class Actions:
                 self._env.item_in_hand = None
                 self._env.arm_pose = ArmPose.unknown
                 self._env.box_status[self._env.pillow_status] += 1
-                self._env.pillow_is_in_box = True
+                self._env.pillow_location[Location.box] = True
             return result, msg
         return False, "failed"
 
@@ -363,7 +376,7 @@ class Actions:
             timeout=self._non_robot_actions_timeout,
         )
         if result:
-            self._env.pillow_is_in_box = False
+            self._env.pillow_location[Location.box] = False
             self._env.pillow_status = None
             self._env.item_size = None
             self._env.weighted_pillow = False
