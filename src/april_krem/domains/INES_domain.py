@@ -4,6 +4,7 @@ from unified_planning.shortcuts import Not, And, Or, StartTiming, EndTiming
 from april_krem.domains.INES_components import (
     Item,
     Location,
+    ArmPose,
     Actions,
     Environment,
 )
@@ -17,7 +18,7 @@ class INESDomain(Bridge):
         self._env = Environment(krem_logging)
 
         # Create types for planning based on class types
-        self.create_types([Item, Location])
+        self.create_types([Item, Location, ArmPose])
         type_item = self.get_type(Item)
         type_location = self.get_type(Location)
 
@@ -58,6 +59,9 @@ class INESDomain(Bridge):
 
         self.moving = self.create_fluent_from_function(self._env.moving)
         self.stationary = self.create_fluent_from_function(self._env.stationary)
+        self.current_arm_pose = self.create_fluent_from_function(
+            self._env.current_arm_pose
+        )
 
         # Create objects for both planning and execution
         self.items = self.create_enum_objects(Item)
@@ -73,6 +77,11 @@ class INESDomain(Bridge):
         self.in_hand = self.objects[Location.in_hand.name]
         self.in_bag = self.objects[Location.in_bag.name]
         self.unknown = self.objects[Location.unknown.name]
+
+        self.create_enum_objects(ArmPose)
+        self.unknown_pose = self.objects[ArmPose.unknown_pose.name]
+        self.home = self.objects[ArmPose.home.name]
+        self.arm_up = self.objects[ArmPose.arm_up.name]
 
         # Create actions for planning
         self._create_domain_actions(temporal)
@@ -128,9 +137,37 @@ class INESDomain(Bridge):
             self.get_insole_perceive.insole,
         )
         self.get_insole_perceive.add_precondition(self.item_in_fov())
+        self.get_insole_perceive.add_precondition(self.current_arm_pose(self.home))
         self.get_insole_perceive.add_subtask(
             self.perceive_insole, self.get_insole_perceive.insole
         )
+
+        # arm at home pose, get next insole by activating conveyor and perceiving it
+        self.get_insole_next = Method(
+            "get_insole_next",
+            conveyor=type_location,
+            insole=type_item,
+        )
+        self.get_insole_next.set_task(
+            self.get_insole,
+            self.get_insole_next.conveyor,
+            self.get_insole_next.insole,
+        )
+        self.get_insole_next.add_precondition(
+            self.stationary(self.get_insole_next.conveyor)
+        )
+        self.get_insole_next.add_precondition(
+            Not(self.item_pose_is_known(self.get_insole_next.insole))
+        )
+        self.get_insole_next.add_precondition(self.current_arm_pose(self.home))
+        self.get_insole_next.add_precondition(Not(self.item_in_fov()))
+        st1 = self.get_insole_next.add_subtask(
+            self.get_next_insole, self.get_insole_next.conveyor
+        )
+        st2 = self.get_insole_next.add_subtask(
+            self.perceive_insole, self.get_insole_next.insole
+        )
+        self.get_insole_next.set_ordered(st1, st2)
 
         # get next insole by activating conveyor and perceiving it
         self.get_insole_full = Method(
@@ -147,13 +184,16 @@ class INESDomain(Bridge):
         self.get_insole_full.add_precondition(
             Not(self.item_pose_is_known(self.get_insole_full.insole))
         )
-        st1 = self.get_insole_full.add_subtask(
+        self.get_insole_full.add_precondition(Not(self.item_in_fov()))
+        self.get_insole_full.add_precondition(Not(self.current_arm_pose(self.home)))
+        st1 = self.get_insole_full.add_subtask(self.move_arm, self.home)
+        st2 = self.get_insole_full.add_subtask(
             self.get_next_insole, self.get_insole_full.conveyor
         )
-        st2 = self.get_insole_full.add_subtask(
+        st3 = self.get_insole_full.add_subtask(
             self.perceive_insole, self.get_insole_full.insole
         )
-        self.get_insole_full.set_ordered(st1, st2)
+        self.get_insole_full.set_ordered(st1, st2, st3)
 
         # prepare_bag
         # bag dispenser has bags, bag already there and perceived
@@ -185,15 +225,29 @@ class INESDomain(Bridge):
         self.prepare_bag_open.set_ordered(st1, st2)
 
         # bag dispenser has bags, load and inspect bag
+        self.prepare_bag_load = Method("prepare_bag_load", bag=type_item)
+        self.prepare_bag_load.set_task(self.prepare_bag, self.prepare_bag_load.bag)
+        self.prepare_bag_load.add_precondition(self.bag_dispenser_has_bags())
+        self.prepare_bag_load.add_precondition(self.current_arm_pose(self.home))
+        st1 = self.prepare_bag_load.add_subtask(self.load_bag)
+        st2 = self.prepare_bag_load.add_subtask(self.open_bag)
+        st3 = self.prepare_bag_load.add_subtask(
+            self.perceive_bag, self.prepare_bag_load.bag
+        )
+        self.prepare_bag_load.set_ordered(st1, st2, st3)
+
+        # bag dispenser has bags, load and inspect bag
         self.prepare_bag_full = Method("prepare_bag_full", bag=type_item)
         self.prepare_bag_full.set_task(self.prepare_bag, self.prepare_bag_full.bag)
         self.prepare_bag_full.add_precondition(self.bag_dispenser_has_bags())
-        st1 = self.prepare_bag_full.add_subtask(self.load_bag)
-        st2 = self.prepare_bag_full.add_subtask(self.open_bag)
-        st3 = self.prepare_bag_full.add_subtask(
+        self.prepare_bag_full.add_precondition(self.current_arm_pose(self.unknown_pose))
+        st1 = self.prepare_bag_full.add_subtask(self.move_arm, self.home)
+        st2 = self.prepare_bag_full.add_subtask(self.load_bag)
+        st3 = self.prepare_bag_full.add_subtask(self.open_bag)
+        st4 = self.prepare_bag_full.add_subtask(
             self.perceive_bag, self.prepare_bag_full.bag
         )
-        self.prepare_bag_full.set_ordered(st1, st2, st3)
+        self.prepare_bag_full.set_ordered(st1, st2, st3, st4)
 
         # bag dispenser empty, refill dispenser, then load and inspect bag
         self.prepare_bag_refill = Method("prepare_bag_refill", bag=type_item)
@@ -205,6 +259,23 @@ class INESDomain(Bridge):
             self.perceive_bag, self.prepare_bag_refill.bag
         )
         self.prepare_bag_refill.set_ordered(st1, st2, st3, st4)
+
+        # bag dispenser empty, refill dispenser, then load and inspect bag
+        self.prepare_bag_refill_home = Method("prepare_bag_refill_home", bag=type_item)
+        self.prepare_bag_refill_home.set_task(
+            self.prepare_bag, self.prepare_bag_refill_home.bag
+        )
+        self.prepare_bag_refill_home.add_precondition(
+            self.current_arm_pose(self.unknown_pose)
+        )
+        st1 = self.prepare_bag_refill_home.add_subtask(self.move_arm, self.home)
+        st2 = self.prepare_bag_refill_home.add_subtask(self.preload_bag_bundle)
+        st3 = self.prepare_bag_refill_home.add_subtask(self.load_bag)
+        st4 = self.prepare_bag_refill_home.add_subtask(self.open_bag)
+        st5 = self.prepare_bag_refill_home.add_subtask(
+            self.perceive_bag, self.prepare_bag_refill_home.bag
+        )
+        self.prepare_bag_refill_home.set_ordered(st1, st2, st3, st4, st5)
 
         # insert_insole
         # already inserted insole
@@ -414,12 +485,15 @@ class INESDomain(Bridge):
         self.methods = (
             self.get_insole_noop,
             self.get_insole_perceive,
+            self.get_insole_next,
             self.get_insole_full,
             self.prepare_bag_noop,
             self.prepare_bag_perceive,
             self.prepare_bag_open,
+            self.prepare_bag_load,
             self.prepare_bag_full,
             self.prepare_bag_refill,
+            self.prepare_bag_refill_home,
             self.insert_insole_noop,
             self.insert_insole_match,
             self.insert_insole_insert,
@@ -606,6 +680,13 @@ class INESDomain(Bridge):
             self.seal_set.add_effect(EndTiming(), self.bag_set_released(), False)
             self.seal_set.add_effect(EndTiming(), self.holding(self.nothing), True)
         else:
+            self.move_arm, [a] = self.create_action(
+                "move_arm",
+                arm_pose=ArmPose,
+                _callable=actions.move_arm,
+            )
+            self.move_arm.add_effect(self.current_arm_pose(a), True)
+
             self.reject_insole, [i] = self.create_action(
                 "reject_insole",
                 insole=Item,
@@ -667,6 +748,7 @@ class INESDomain(Bridge):
             self.pick_insole.add_effect(self.item_pose_is_known(i), False)
             self.pick_insole.add_effect(self.item_in_fov(), False)
             self.pick_insole.add_effect(self.holding(self.nothing), False)
+            self.pick_insole.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
             self.pick_set, [s] = self.create_action(
                 "pick_set", set=Item, _callable=actions.pick_set
@@ -677,6 +759,7 @@ class INESDomain(Bridge):
             self.pick_set.add_effect(self.holding(s), True)
             self.pick_set.add_effect(self.item_pose_is_known(s), False)
             self.pick_set.add_effect(self.bag_is_probably_available, False)
+            self.pick_set.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
             self.insert, [i, b] = self.create_action(
                 "insert", insole=Item, bag=Item, _callable=actions.insert
@@ -691,6 +774,7 @@ class INESDomain(Bridge):
             self.insert.add_effect(self.holding(i), False)
             self.insert.add_effect(self.holding(self.nothing), True)
             self.insert.add_effect(self.item_types_match(), False)
+            self.insert.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
             self.perceive_insole, [i] = self.create_action(
                 "perceive_insole", insole=Item, _callable=actions.perceive_insole
@@ -733,6 +817,7 @@ class INESDomain(Bridge):
             self.seal_set.add_effect(self.holding(s), False)
             self.seal_set.add_effect(self.bag_set_released(), False)
             self.seal_set.add_effect(self.holding(self.nothing), True)
+            self.seal_set.add_effect(self.current_arm_pose(self.unknown_pose), True)
 
     def set_state_and_goal(self, problem, goal=None) -> bool:
         success = True

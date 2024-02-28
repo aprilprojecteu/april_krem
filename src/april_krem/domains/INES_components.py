@@ -34,6 +34,12 @@ class Location(Enum):
     unknown = "unknown"
 
 
+class ArmPose(Enum):
+    unknown_pose = "unknown_pose"
+    home = "home"
+    arm_up = "arm_up"
+
+
 class Environment:
     def __init__(self, krem_logging):
         self._krem_logging = krem_logging
@@ -59,6 +65,7 @@ class Environment:
         self.set_released = False
         self.bag_probably_open = False
         self.bag_open = False
+        self.arm_pose = ArmPose.unknown_pose
 
         # Store objects with ID received from HICEM via Service
         rospy.Service(
@@ -67,23 +74,6 @@ class Environment:
             self._object_poses_srv,
         )
         self._perceived_objects = {}
-
-    def __str__(self) -> str:
-        item_at_location_str = "\n".join(
-            [f'- "{k.value}" at "{v.value}"' for k, v in self.item_at_location.items()]
-        )
-        perceived_objects_str = "\n".join(
-            [f'- "{k}"' for k in self._perceived_objects.keys()]
-        )
-        return (
-            f"Objects at location: \n{item_at_location_str}\n"
-            f"Types match: {self.types_match}\n"
-            f"Item types not checked: {self.not_checked_types}\n"
-            f"Set released: {self.set_released}\n"
-            f"Bag probably open: {self.bag_probably_open}\n"
-            f"Bag open: {self.bag_open}\n"
-            f"Perceived objects:\n {perceived_objects_str}"
-        )
 
     def reset_env(self) -> None:
         self.item_at_location = {
@@ -97,6 +87,7 @@ class Environment:
         self.set_released = False
         self.bag_probably_open = False
         self.bag_open = False
+        self.arm_pose = ArmPose.unknown_pose
 
         self._perceived_objects.clear()
 
@@ -112,6 +103,7 @@ class Environment:
         self.set_released = False
         self.bag_probably_open = False
         self.bag_open = False
+        self.arm_pose = ArmPose.unknown_pose
 
         self._perceived_objects.clear()
 
@@ -148,6 +140,9 @@ class Environment:
         for k in list(self._perceived_objects.keys()):
             if item in k:
                 del self._perceived_objects[k]
+
+    def current_arm_pose(self, arm_pose: ArmPose) -> bool:
+        return arm_pose == self.arm_pose
 
     def stationary(self, conveyor: Location) -> bool:
         facts = self._fact_generator.generate_facts_with_name("stationary")
@@ -255,6 +250,23 @@ class Actions:
             "~robot_actions_timeout", default="120"
         )
 
+    def move_arm(self, arm_pose: ArmPose):
+        result = False
+        msg = "failed"
+        if arm_pose == ArmPose.home:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_to_home_pose",
+                timeout=self._robot_actions_timeout,
+            )
+        elif arm_pose == ArmPose.arm_up:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "move_arm_up",
+                timeout=self._robot_actions_timeout,
+            )
+        if result:
+            self._env.arm_pose = arm_pose
+        return result, msg
+
     def reject_insole(self, insole: Item):
         # arguments: [ID of insole]
         _, id = self._env._get_item_type_and_id("insole")
@@ -326,6 +338,7 @@ class Actions:
         if result:
             self._env.item_at_location[insole] = Location.in_hand
             self._env.item_at_location[Item.nothing] = Location.unknown
+            self._env.arm_pose = ArmPose.unknown_pose
         return result, msg
 
     def pick_set(self, set: Item):
@@ -341,6 +354,7 @@ class Actions:
         if result:
             self._env.item_at_location[set] = Location.in_hand
             self._env.item_at_location[Item.nothing] = Location.unknown
+            self._env.arm_pose = ArmPose.unknown_pose
         return result, msg
 
     def insert(self, insole: Item, bag: Item):
@@ -354,6 +368,7 @@ class Actions:
             self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.bag_open = False
             self._env.types_match = False
+            self._env.arm_pose = ArmPose.unknown_pose
         return result, msg
 
     def perceive_insole(self, insole: Item):
@@ -362,7 +377,12 @@ class Actions:
             "perceive_insole", timeout=self._non_robot_actions_timeout
         )
         if result:
-            self._env.item_at_location[insole] = Location.conveyor_a
+            class_name, _ = self._env._get_item_type_and_id("insole")
+            if class_name is not None:
+                self._env.item_at_location[insole] = Location.conveyor_a
+            else:
+                self._env.item_at_location[insole] = Location.unknown
+                return False, "failed"
         return result, msg
 
     def perceive_bag(self, bag: Item):
@@ -371,9 +391,15 @@ class Actions:
             "perceive_bag", timeout=self._non_robot_actions_timeout
         )
         if result:
-            self._env.item_at_location[bag] = Location.dispenser
-            self._env.bag_probably_open = False
-            self._env.bag_open = True
+            class_name, _ = self._env._get_item_type_and_id("set")
+            if class_name is not None:
+                self._env.item_at_location[bag] = Location.dispenser
+                self._env.bag_probably_open = False
+                self._env.bag_open = True
+            else:
+                self._env.item_at_location[bag] = Location.unknown
+                return False, "failed"
+
         return result, msg
 
     def perceive_set(self, insole: Item, bag: Item, set: Item):
@@ -382,7 +408,13 @@ class Actions:
             "perceive_set", timeout=self._non_robot_actions_timeout
         )
         if result:
-            self._env.item_at_location[set] = Location.dispenser
+            class_name, _ = self._env._get_item_type_and_id("set")
+            if class_name is not None:
+                self._env.item_at_location[set] = Location.dispenser
+            else:
+                self._env.item_at_location[set] = Location.unknown
+                return False, "failed"
+
         return result, msg
 
     def release_set(self, set: Item):
@@ -407,6 +439,7 @@ class Actions:
             self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.set_released = False
             self._env.not_checked_types = True
+            self._env.arm_pose = ArmPose.unknown_pose
             self._env._perceived_objects.clear()
             self._env._krem_logging.cycle_complete = True
         return result, msg
