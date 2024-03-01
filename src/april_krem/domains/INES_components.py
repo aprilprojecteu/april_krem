@@ -63,7 +63,6 @@ class Environment:
         self.types_match = False
         self.not_checked_types = True
         self.set_released = False
-        self.bag_probably_open = False
         self.bag_open = False
         self.arm_pose = ArmPose.unknown_pose
 
@@ -85,7 +84,6 @@ class Environment:
         self.types_match = False
         self.not_checked_types = True
         self.set_released = False
-        self.bag_probably_open = False
         self.bag_open = False
         self.arm_pose = ArmPose.unknown_pose
 
@@ -101,7 +99,6 @@ class Environment:
         self.types_match = False
         self.not_checked_types = True
         self.set_released = False
-        self.bag_probably_open = False
         self.bag_open = False
         self.arm_pose = ArmPose.unknown_pose
 
@@ -221,9 +218,6 @@ class Environment:
         else:
             return False
 
-    def bag_is_probably_open(self) -> bool:
-        return self.bag_probably_open
-
     def bag_is_open(self) -> bool:
         return self.bag_open
 
@@ -303,13 +297,15 @@ class Actions:
             "open_bag", timeout=self._non_robot_actions_timeout
         )
         if result:
-            self._env.bag_probably_open = True
+            self._env.bag_open = True
         return result, msg
 
     def match_insole_bag(self, insole: Item, bag: Item):
         # arguments: [ID of insole, ID of bag]
         _, insole_id = self._env._get_item_type_and_id("insole")
         _, set_id = self._env._get_item_type_and_id("set")
+        if insole_id is None or set_id is None:
+            return False, "failed"
         result, msg = PlanDispatcher.run_symbolic_action(
             "match_insole_bag",
             action_arguments=[str(insole_id), str(set_id)],
@@ -394,8 +390,6 @@ class Actions:
             class_name, _ = self._env._get_item_type_and_id("set")
             if class_name is not None:
                 self._env.item_at_location[bag] = Location.dispenser
-                self._env.bag_probably_open = False
-                self._env.bag_open = True
             else:
                 self._env.item_at_location[bag] = Location.unknown
                 return False, "failed"
