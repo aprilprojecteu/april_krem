@@ -303,7 +303,7 @@ class Actions:
     def match_insole_bag(self, insole: Item, bag: Item):
         # arguments: [ID of insole, ID of bag]
         _, insole_id = self._env._get_item_type_and_id("insole")
-        _, set_id = self._env._get_item_type_and_id("set")
+        _, set_id = self._env._get_item_type_and_id("bag")
         if insole_id is None or set_id is None:
             return False, "failed"
         result, msg = PlanDispatcher.run_symbolic_action(
@@ -354,8 +354,8 @@ class Actions:
         return result, msg
 
     def insert(self, insole: Item, bag: Item):
-        # arguments: [ID of bag (workaround: ID of set)​]
-        _, id = self._env._get_item_type_and_id("set")
+        # arguments: [ID of bag​]
+        _, id = self._env._get_item_type_and_id("bag")
         result, msg = PlanDispatcher.run_symbolic_action(
             "insert", [str(id)], timeout=self._robot_actions_timeout
         )
@@ -382,12 +382,12 @@ class Actions:
         return result, msg
 
     def perceive_bag(self, bag: Item):
-        self._env._clear_item_type("set")
+        self._env._clear_item_type("bag")
         result, msg = PlanDispatcher.run_symbolic_action(
             "perceive_bag", timeout=self._non_robot_actions_timeout
         )
         if result:
-            class_name, _ = self._env._get_item_type_and_id("set")
+            class_name, _ = self._env._get_item_type_and_id("bag")
             if class_name is not None:
                 self._env.item_at_location[bag] = Location.dispenser
             else:
