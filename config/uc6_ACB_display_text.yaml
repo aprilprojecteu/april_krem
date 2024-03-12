@@ -3,13 +3,13 @@ get_next_insole:
   replanning: false
   message: Place Insole on Conveyor.
 preload_bag_bundle:
-  replanning: false
+  replanning: true
   message: Place Bags in Dispenser.
 perceive_insole:
   replanning: false
   message: No Insole on Conveyor detected.
 load_bag:
-  replanning: false
+  replanning: true
   message: Place Bags in Dispenser.
 open_bag:
   replanning: false
