@@ -292,6 +292,7 @@ class INESDomain(Bridge):
         self.insert_insole_insert.add_precondition(
             self.holding(self.insert_insole_insert.insole)
         )
+        self.insert_insole_insert.add_precondition(self.bag_is_open())
         st1 = self.insert_insole_insert.add_subtask(
             self.insert, self.insert_insole_insert.insole, self.insert_insole_insert.bag
         )
@@ -520,6 +521,7 @@ class INESDomain(Bridge):
 
     def _create_domain_actions(self, temporal: bool = False) -> None:
         actions = Actions(self._env)
+        self._env._release_bag = actions.release_bag
 
         if temporal:
             self.match_insole_bag, [i, b] = self.create_action(
@@ -779,7 +781,6 @@ class INESDomain(Bridge):
             self.insert.add_precondition(self.holding(i))
             self.insert.add_precondition(self.item_types_match())
             self.insert.add_effect(self.insole_inside_bag(i), True)
-            self.insert.add_effect(self.bag_is_open(), False)
             self.insert.add_effect(self.item_pose_is_known(b), False)
             self.insert.add_effect(self.holding(i), False)
             self.insert.add_effect(self.holding(self.nothing), True)
@@ -824,6 +825,7 @@ class INESDomain(Bridge):
             self.seal_set.add_precondition(self.sealing_machine_ready())
             self.seal_set.add_effect(self.holding(s), False)
             self.seal_set.add_effect(self.bag_set_released(), False)
+            self.seal_set.add_effect(self.bag_is_open(), False)
             self.seal_set.add_effect(self.holding(self.nothing), True)
             self.seal_set.add_effect(self.current_arm_pose(self.unknown_pose), True)
 

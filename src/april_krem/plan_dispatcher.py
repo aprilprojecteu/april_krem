@@ -307,6 +307,51 @@ class PlanDispatcher:
                 raise RuntimeError(f"Tried to change to unknown state: {state}!")
 
     @classmethod
+    def run_symbolic_action_before_reset(
+        cls,
+        action_name: str,
+        action_arguments=[],
+        grasp_facts=[],
+        timeout=0.0,
+    ) -> Tuple[bool, str]:
+        rate = rospy.Rate(10)
+
+        run_symbolic_action_goal_msg = RunSymbolicActionGoal(
+            action_type=action_name,
+            action_arguments=action_arguments,
+            grasp_facts=grasp_facts,
+        )
+
+        start_time = rospy.get_rostime().to_sec()
+
+        rospy.loginfo(f"\033[92mDispatcherROS: Dispatching action {action_name}\033[0m")
+
+        cls.HICEM_ACTION_SERVER.send_goal(run_symbolic_action_goal_msg)
+
+        while not rospy.is_shutdown():
+            if cls.HICEM_ACTION_SERVER.get_result():
+                # result received
+                _action_result = cls.HICEM_ACTION_SERVER.get_result()
+                if _action_result.success:
+                    rospy.loginfo(
+                        f"\033[92mDispatcherROS: Action {action_name} successful!\033[0m"
+                    )
+                    cls.KREM_LOGGING.log_info(
+                        f"Action {action_name} finished after {rospy.get_rostime().to_sec() - start_time} seconds."
+                    )
+                    break
+            # Check if action timed out, cancel action, return failure
+            if rospy.get_rostime().to_sec() - start_time > timeout:
+                cls.HICEM_ACTION_SERVER.cancel_all_goals()
+                return (False, "timeout")
+            rate.sleep()
+        return (
+            (_action_result, "success")
+            if _action_result is not None and _action_result
+            else (False, "failed")
+        )
+
+    @classmethod
     def run_symbolic_action(
         cls,
         action_name: str,

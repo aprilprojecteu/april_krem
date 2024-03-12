@@ -74,7 +74,12 @@ class Environment:
         )
         self._perceived_objects = {}
 
+        self._release_bag = None
+
     def reset_env(self) -> None:
+        if self.bag_open and self._release_bag is not None:
+            result, msg = self._release_bag()
+
         self.item_at_location = {
             Item.insole: Location.unknown,
             Item.bag: Location.unknown,
@@ -90,6 +95,9 @@ class Environment:
         self._perceived_objects.clear()
 
     def reset_env_keep_counters(self) -> None:
+        if self.bag_open and self._release_bag is not None:
+            result, msg = self._release_bag()
+
         self.item_at_location = {
             Item.insole: Location.unknown,
             Item.bag: Location.unknown,
@@ -362,7 +370,6 @@ class Actions:
         if result:
             self._env.item_at_location[insole] = Location.in_bag
             self._env.item_at_location[Item.nothing] = Location.in_hand
-            self._env.bag_open = False
             self._env.types_match = False
             self._env.arm_pose = ArmPose.unknown_pose
         return result, msg
@@ -411,6 +418,12 @@ class Actions:
 
         return result, msg
 
+    def release_bag(self):
+        result, msg = PlanDispatcher.run_symbolic_action_before_reset(
+            "release_bag", timeout=5.0
+        )
+        return result, msg
+
     def release_set(self, set: Item):
         result, msg = PlanDispatcher.run_symbolic_action(
             "release_set", timeout=self._non_robot_actions_timeout
@@ -432,6 +445,7 @@ class Actions:
             self._env.item_at_location[set] = Location.unknown
             self._env.item_at_location[Item.nothing] = Location.in_hand
             self._env.set_released = False
+            self._env.bag_open = False
             self._env.not_checked_types = True
             self._env.arm_pose = ArmPose.unknown_pose
             self._env._perceived_objects.clear()

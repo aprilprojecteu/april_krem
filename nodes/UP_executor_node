@@ -101,17 +101,8 @@ class AprilPlanDispatcher:
         ):
             rospy.logwarn("Gesture Backup Button 3 pressed! Resuming action execution.")
             PlanDispatcher.change_state(KREM_STATE.ACTIVE)
-        # RETRIEVE
-        if msg.gesture_backup_button_state_4:
-            pass
-        # VALIDATE
-        if msg.gesture_backup_button_state_5:
-            pass
-        # RESET SEEH (used by UPM)
-        if msg.gesture_backup_button_state_6:
-            pass
         # HOME
-        if (
+        elif (
             msg.gesture_backup_button_state_7
             and PlanDispatcher.STATE != KREM_STATE.HOME
         ):
@@ -124,6 +115,16 @@ class AprilPlanDispatcher:
                 self._domain.specific_domain._env.reset_env()
             result = PlanDispatcher.arm_to_home_pose_action()
             rospy.loginfo(f"Arm moved to home pose with result: {result}")
+
+        # RETRIEVE
+        if msg.gesture_backup_button_state_4:
+            pass
+        # VALIDATE
+        if msg.gesture_backup_button_state_5:
+            pass
+        # RESET SEEH (used by UPM)
+        if msg.gesture_backup_button_state_6:
+            pass
 
     def _gesture_cb(self, msg: PersonGesturesList):
         for gesture in msg.person_gestures_list:
