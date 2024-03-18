@@ -245,10 +245,17 @@ class Actions:
 
     def perceive_pillow(self, location: Location):
         self._env._clear_item_type("pillow")
-        result, msg = PlanDispatcher.run_symbolic_action(
-            "perceive_pillow",
-            timeout=self._non_robot_actions_timeout,
-        )
+        result, msg = False, "failed"
+        if location == Location.table:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "perceive_pillow_on_table",
+                timeout=self._non_robot_actions_timeout,
+            )
+        elif location == Location.scale:
+            result, msg = PlanDispatcher.run_symbolic_action(
+                "perceive_pillow_on_scale",
+                timeout=self._non_robot_actions_timeout,
+            )
         if result:
             type, _ = self._env._get_item_type_and_id("pillow")
             if type is not None and "big" in type:
@@ -260,8 +267,15 @@ class Actions:
                 self._env.pillow_perceived[location] = True
                 self._env.pillow_location[location] = True
             else:
-                self._env.item_size = None
+                self._env.pillow_perceived[location] = False
+                if location == Location.table:
+                    self._env.pillow_location[location] = False
                 return False, "failed"
+        else:
+            self._env.pillow_perceived[location] = False
+            if location == Location.table:
+                self._env.pillow_location[location] = False
+            return False, "failed"
         return result, msg
 
     def move_arm(self, arm_pose: ArmPose):
@@ -298,31 +312,39 @@ class Actions:
 
     def pick_pillow(self, pillow: Item, size: Size, location: Location):
         # arguments: [ID of pillow]
+        result, msg = False, "failed"
         class_name, id = self._env._get_item_type_and_id("pillow")
         if class_name is not None:
             grasp_facts = self._grasp_library_srv("mia", class_name, "placing", False)
-            result, msg = PlanDispatcher.run_symbolic_action(
-                "pick_pillow",
-                [str(id)],
-                grasp_facts.grasp_strategies,
-                timeout=self._robot_actions_timeout,
-            )
+            if location == Location.table:
+                result, msg = PlanDispatcher.run_symbolic_action(
+                    "pick_pillow_from_table",
+                    [str(id)],
+                    grasp_facts.grasp_strategies,
+                    timeout=self._robot_actions_timeout,
+                )
+            elif location == Location.scale:
+                result, msg = PlanDispatcher.run_symbolic_action(
+                    "pick_pillow_from_scale",
+                    [str(id)],
+                    grasp_facts.grasp_strategies,
+                    timeout=self._robot_actions_timeout,
+                )
             if result:
                 self._env.holding_item = Item.pillow
                 self._env.item_in_hand = class_name + "_" + str(id)
                 self._env.arm_pose = ArmPose.unknown
                 self._env.pillow_perceived[location] = False
                 self._env.pillow_location[location] = False
-            return result, msg
-        return False, "failed"
+        return result, msg
 
     def place_pillow_on_scale(self, pillow: Item, size: Size):
         # arguments: [ID of pillow]
         if self._env.item_in_hand is not None:
-            class_name, _ = self._env.item_in_hand.rsplit("_", 1)
+            class_name, id = self._env.item_in_hand.rsplit("_", 1)
             result, msg = PlanDispatcher.run_symbolic_action(
                 "place_pillow_on_scale",
-                [class_name],
+                [str(id), class_name],
                 timeout=self._robot_actions_timeout,
             )
             if result:

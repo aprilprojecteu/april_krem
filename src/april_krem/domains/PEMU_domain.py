@@ -146,6 +146,21 @@ class PEMUDomain(Bridge):
         s3 = self.perceive_pillow_get.add_subtask(self.perceive_pillow, self.table)
         self.perceive_pillow_get.set_ordered(s1, s2, s3)
 
+        # get next pillow, already over table
+        self.perceive_pillow_get_again = Method("perceive_pillow_get_again", pillow=type_item)
+        self.perceive_pillow_get_again.set_task(
+            self.t_perceive_pillow, self.perceive_pillow_get_again.pillow
+        )
+        self.perceive_pillow_get_again.add_precondition(self.current_arm_pose(self.over_table))
+        self.perceive_pillow_get_again.add_precondition(self.holding(self.nothing))
+        self.perceive_pillow_get_again.add_precondition(Not(self.pillow_is_on(self.table)))
+        self.perceive_pillow_get_again.add_precondition(
+            Not(self.perceived_pillow(self.table))
+        )
+        s1 = self.perceive_pillow_get_again.add_subtask(self.get_next_pillow)
+        s2 = self.perceive_pillow_get_again.add_subtask(self.perceive_pillow, self.table)
+        self.perceive_pillow_get_again.set_ordered(s1, s2)
+
         # move arm and perceive pillow
         self.perceive_pillow_full = Method("perceive_pillow_full", pillow=type_item)
         self.perceive_pillow_full.set_task(
@@ -200,6 +215,7 @@ class PEMUDomain(Bridge):
         )
         s1 = self.inspect_pillow_perceive.add_subtask(self.perceive_pillow, self.scale)
         s2 = self.inspect_pillow_perceive.add_subtask(self.inspect)
+        self.inspect_pillow_perceive.set_ordered(s1, s2)
 
         # pillow on scale, arm moved over scale, weight, perceive and inspect
         self.inspect_pillow_weight = Method("inspect_pillow_weight", pillow=type_item)
@@ -596,6 +612,7 @@ class PEMUDomain(Bridge):
             self.perceive_pillow_perceive,
             self.perceive_pillow_move_arm,
             self.perceive_pillow_get,
+            self.perceive_pillow_get_again,
             self.perceive_pillow_full,
             self.inspect_pillow_move_arm_1,
             self.inspect_pillow_move_arm_2,

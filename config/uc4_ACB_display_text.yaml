@@ -2,12 +2,15 @@
 move_arm:
   replanning: false
   message: Could not move the arm.
+get_next_pillow:
+  replanning: false
+  message: Failed to retrieve confirmation of newly placed pillow on table.
 pick_pillow:
   replanning: false
   message: Could not pick up the Pillow.
-perceive_pillow_on_table:
-  replanning: false
-  message: Could not detect the Pillow on Table.
+perceive_pillow:
+  replanning: true
+  message: Could not detect the Pillow.
 perceive_pillow_on_scale:
   replanning: false
   message: Could not detect the Pillow on Scale.
