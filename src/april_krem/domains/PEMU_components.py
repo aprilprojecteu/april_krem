@@ -294,6 +294,7 @@ class Actions:
         elif arm_pose == ArmPose.over_boxes:
             result, msg = PlanDispatcher.run_symbolic_action(
                 "move_over_boxes",
+                [self._env.pillow_status.value],
                 timeout=self._robot_actions_timeout,
             )
         elif arm_pose == ArmPose.home:
