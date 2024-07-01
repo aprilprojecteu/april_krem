@@ -1,0 +1,21 @@
+repositories:
+  april_krem_models:
+    type: git
+    url: https://github.com/aprilprojecteu/april_krem_models.git
+    version: master
+  april_msgs:
+    type: git
+    url: https://github.com/aprilprojecteu/april_msgs.git
+    version: noetic
+  symbolic_fact_generation_use_cases:
+    type: git
+    url: https://github.com/aprilprojecteu/symbolic_fact_generation_use_cases.git
+    version: main
+  symbolic_fact_generation:
+    type: git
+    url: https://github.com/DFKI-NI/symbolic_fact_generation.git
+    version: main
+  grasp_library:
+    type: git
+    url: https://github.com/aprilprojecteu/april_grasp_library.git
+    version: master

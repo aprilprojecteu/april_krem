@@ -1,14 +1,24 @@
 # april_krem
 
-## Launch
+## Installation
+
+ROS noetic and Python 3 are assumed to be available. [vcs](https://pypi.org/project/vcstool/) will be installed when needed.
 
 ```bash
-roslaunch april_krem krem.launch use_case:=uc? enable_monitor:=false goal:="" non_robot_actions_timeout:=20 robot_actions_timeout:=120
+./install-deps.sh
+./build.sh
+```
+
+## Launch
+
+Replace `uc?` with one of the use case numbers, see Launch Parameters below.
+```bash
+roslaunch april_krem krem.launch use_case:=uc? temporal_actions:=false enable_monitor:=false goal:="" non_robot_actions_timeout:=20.0 robot_actions_timeout:=120.0
 ```
 
 ### Launch Parameters
 
-- **use_case**: specify the use case, possible values (uc1, uc2, uc3, uc4, uc6)
+- **use_case**: specify the use case, possible values (uc1, uc2, uc3, uc5, uc5_2, uc5_3, uc5_4, uc4, uc6)
 - **enable_monitor**: enables monitoring of pre- and postconditions of actions before and after executing them
 - **goal**: empty string to run whole use case scenario
 - **non_robot_actions_timeout**: timeout for actions that do not use the robotic arm e.g. perceive,
